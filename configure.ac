@@ -3,7 +3,7 @@
 
 
 AC_PREREQ(2.60)
-AC_INIT(libpinyin, 0.5.0, alexepico@gmail.com)
+AC_INIT(libpinyin, 0.5.92, alexepico@gmail.com)
 AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR([config.h.in])
 AC_CONFIG_HEADER([config.h])
@@ -73,6 +73,7 @@ AC_SEARCH_LIBS([db_create], [db], [], AC_MSG_ERROR([Cannot find Berkeley DB libr
 AC_CONFIG_FILES([libpinyin.pc
                  libpinyin.spec
 		 Makefile
+                 doc/Makefile
 		 data/Makefile
 		 src/Makefile
                  src/include/Makefile

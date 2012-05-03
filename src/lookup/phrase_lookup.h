@@ -23,6 +23,7 @@
 #define PHRASE_LOOKUP_H
 
 #include "novel_types.h"
+#include "ngram.h"
 #include "lookup.h"
 
 /** @file phrase_lookup.h
@@ -37,9 +38,10 @@ private:
     static const gfloat unigram_lambda;
 
     PhraseItem m_cache_phrase_item;
+    SingleGram m_merged_single_gram;
 protected:
     //saved varibles
-    PhraseLargeTable * m_phrase_table;
+    FacadePhraseTable * m_phrase_table;
     FacadePhraseIndex * m_phrase_index;
     Bigram * m_system_bigram;
     Bigram * m_user_bigram;
@@ -68,7 +70,7 @@ protected:
 
     bool final_step(MatchResults & results);
 public:
-    PhraseLookup(PhraseLargeTable * phrase_table,
+    PhraseLookup(FacadePhraseTable * phrase_table,
                  FacadePhraseIndex * phrase_index,
                  Bigram * system_bigram,
                  Bigram * user_bigram);

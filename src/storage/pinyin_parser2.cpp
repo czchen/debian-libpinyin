@@ -345,7 +345,9 @@ int FullPinyinParser2::parse (pinyin_option_t options, ChewingKeyVector & keys,
 #endif
 
         /* dynamic programming here. */
-        for (size_t m = i; m < next_sep; ++m) {
+        /* for (size_t m = i; m < next_sep; ++m) */
+        {
+            size_t m = i;
             curstep = &g_array_index(m_parse_steps, parse_value_t, m);
             size_t try_len = std_lite::min
                 (m + max_full_pinyin_length, next_sep);
@@ -372,30 +374,54 @@ int FullPinyinParser2::parse (pinyin_option_t options, ChewingKeyVector & keys,
                 value.m_last_step = m;
 
                 /* save next step */
+                /* no previous result */
                 if (-1 == nextstep->m_last_step)
                     *nextstep = value;
+                /* prefer the longest pinyin */
                 if (value.m_parsed_len > nextstep->m_parsed_len)
                     *nextstep = value;
+                /* prefer the shortest keys with the same pinyin length */
                 if (value.m_parsed_len == nextstep->m_parsed_len &&
                     value.m_num_keys < nextstep->m_num_keys)
                     *nextstep = value;
+
+                /* handle with the same pinyin length and the number of keys */
                 if (value.m_parsed_len == nextstep->m_parsed_len &&
                     value.m_num_keys == nextstep->m_num_keys) {
 
-                    /* "kaneiji" -> "ka'nei'ji" */
+#if 0
+                    /* prefer the complete pinyin with shengmu
+                     * over without shengmu,
+                     * ex: "kaneiji" -> "ka'nei'ji".
+                     */
                     if ((value.m_key.m_initial != CHEWING_ZERO_INITIAL &&
                          !(value.m_key.m_middle == CHEWING_ZERO_MIDDLE &&
                            value.m_key.m_final == CHEWING_ZERO_FINAL)) &&
                         nextstep->m_key.m_initial == CHEWING_ZERO_INITIAL)
                         *nextstep = value;
 
-                    /* "xierqi" -> "xi'er'qi." */
+                    /* prefer the complete pinyin 'er'
+                     * over the in-complete pinyin 'r',
+                     * ex: "xierqi" -> "xi'er'qi."
+                     */
                     if ((value.m_key.m_initial == CHEWING_ZERO_INITIAL &&
                         value.m_key.m_middle == CHEWING_ZERO_MIDDLE &&
                         value.m_key.m_final == CHEWING_ER) &&
                         (nextstep->m_key.m_initial == CHEWING_R &&
                          nextstep->m_key.m_middle == CHEWING_ZERO_MIDDLE &&
                          nextstep->m_key.m_final == CHEWING_ZERO_FINAL))
+                        *nextstep = value;
+#endif
+
+                    /* prefer the 'a' at the end of clause,
+                     * ex: "zheyanga$" -> "zhe'yang'a$".
+                     */
+                    if (value.m_parsed_len == len &&
+                        (nextstep->m_key.m_initial != CHEWING_ZERO_INITIAL &&
+                         nextstep->m_key.m_final == CHEWING_A) &&
+                        (value.m_key.m_initial == CHEWING_ZERO_INITIAL &&
+                         value.m_key.m_middle == CHEWING_ZERO_MIDDLE &&
+                         value.m_key.m_final == CHEWING_A))
                         *nextstep = value;
                 }
             }
@@ -464,21 +490,19 @@ bool FullPinyinParser2::post_process(pinyin_option_t options,
     guint16 next_tone = CHEWING_ZERO_TONE;
 
     for (i = 0; i < num_keys - 1; ++i) {
-        cur_key = &g_array_index(keys, ChewingKey, i);
-        next_key = &g_array_index(keys, ChewingKey, i + 1);
+        cur_rest = &g_array_index(key_rests, ChewingKeyRest, i);
+        next_rest = &g_array_index(key_rests, ChewingKeyRest, i + 1);
 
         /* some "'" here */
-        if (0 == cur_key->get_table_index())
+        if (cur_rest->m_raw_end != next_rest->m_raw_begin)
             continue;
-        if (0 == next_key->get_table_index())
-            continue;
+
+        cur_key = &g_array_index(keys, ChewingKey, i);
+        next_key = &g_array_index(keys, ChewingKey, i + 1);
 
         /* some tone here */
         if (CHEWING_ZERO_TONE != cur_key->m_tone)
             continue;
-
-        cur_rest = &g_array_index(key_rests, ChewingKeyRest, i);
-        next_rest = &g_array_index(key_rests, ChewingKeyRest, i + 1);
 
         if (options & USE_TONE) {
             next_tone = next_key->m_tone;
@@ -526,6 +550,7 @@ bool FullPinyinParser2::post_process(pinyin_option_t options,
 bool DoublePinyinParser2::parse_one_key(pinyin_option_t options,
                                         ChewingKey & key,
                                         const char *str, int len) const {
+    options &= ~(PINYIN_CORRECT_ALL|PINYIN_AMB_ALL);
 
     if (1 == len) {
         if (!(options & PINYIN_INCOMPLETE))
@@ -548,7 +573,7 @@ bool DoublePinyinParser2::parse_one_key(pinyin_option_t options,
     }
 
     ChewingTone tone = CHEWING_ZERO_TONE;
-    options &= ~(PINYIN_CORRECT_ALL|PINYIN_AMB_ALL);
+    options &= ~(PINYIN_INCOMPLETE|CHEWING_INCOMPLETE);
 
     /* parse tone */
     if (3 == len) {
@@ -581,6 +606,9 @@ bool DoublePinyinParser2::parse_one_key(pinyin_option_t options,
         charid = ch == ';' ? 26 : ch - 'a';
         /* first yunmu */
         const char * yun = m_yunmu_table[charid].m_yunmus[0];
+        if (NULL == yun)
+            return false;
+
         gchar * pinyin = g_strdup_printf("%s%s", sheng, yun);
         if (search_pinyin_index(options, pinyin, key)) {
             key.m_tone = tone;
@@ -591,6 +619,9 @@ bool DoublePinyinParser2::parse_one_key(pinyin_option_t options,
 
         /* second yunmu */
         yun = m_yunmu_table[charid].m_yunmus[1];
+        if (NULL == yun)
+            return false;
+
         pinyin = g_strdup_printf("%s%s", sheng, yun);
         if (search_pinyin_index(options, pinyin, key)) {
             key.m_tone = tone;
@@ -718,6 +749,7 @@ static bool search_chewing_tones(const chewing_tone_item_t * tone_table,
 bool ChewingParser2::parse_one_key(pinyin_option_t options,
                                    ChewingKey & key,
                                    const char *str, int len) const {
+    options &= ~(PINYIN_CORRECT_ALL|PINYIN_AMB_ALL);
     char tone = CHEWING_ZERO_TONE;
 
     int symbols_len = len;
@@ -771,7 +803,7 @@ int ChewingParser2::parse(pinyin_option_t options, ChewingKeyVector & keys,
     int maximum_len = 0; int i;
     /* probe the longest possible chewing string. */
     for (i = 0; i < len; ++i) {
-        if (!in_chewing_scheme(str[i], NULL))
+        if (!in_chewing_scheme(options, str[i], NULL))
             break;
     }
     maximum_len = i;
@@ -829,7 +861,8 @@ bool ChewingParser2::set_scheme(ChewingScheme scheme) {
 }
 
 
-bool ChewingParser2::in_chewing_scheme(const char key, const char ** symbol)
+bool ChewingParser2::in_chewing_scheme(pinyin_option_t options,
+                                       const char key, const char ** symbol)
  const {
     const gchar * chewing = NULL;
     char tone = CHEWING_ZERO_TONE;
@@ -839,6 +872,9 @@ bool ChewingParser2::in_chewing_scheme(const char key, const char ** symbol)
             *symbol = chewing;
         return true;
     }
+
+    if (!(options & USE_TONE))
+        return false;
 
     if (search_chewing_tones(m_tone_table, key, &tone)) {
         if (symbol)
