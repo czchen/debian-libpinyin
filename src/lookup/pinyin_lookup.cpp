@@ -26,6 +26,7 @@
 #include "stl_lite.h"
 #include "novel_types.h"
 #include "pinyin_phrase2.h"
+#include "facade_chewing_table.h"
 #include "ngram.h"
 #include "winner_tree.h"
 
@@ -35,7 +36,7 @@ const gfloat PinyinLookup::bigram_lambda = LAMBDA_PARAMETER;
 const gfloat PinyinLookup::unigram_lambda = 1 - LAMBDA_PARAMETER;
 
 PinyinLookup::PinyinLookup(pinyin_option_t options,
-                           ChewingLargeTable * pinyin_table,
+                           FacadeChewingTable * pinyin_table,
                            FacadePhraseIndex * phrase_index,
                            Bigram * system_bigram,
                            Bigram * user_bigram){
@@ -116,7 +117,7 @@ size_t PinyinLookup::prepare_table_cache(int nstep, int total_pinyin){
     g_array_set_size(m_table_cache, MAX_PHRASE_LENGTH + 1);
 
     int len, total_len = std_lite::min(total_pinyin, MAX_PHRASE_LENGTH);
-
+#if 0
     /* probe constraint */
     for ( len = 1; len <= total_len; ++len) {
         lookup_constraint_t * constraint = &g_array_index(m_constraints, lookup_constraint_t, nstep + len);
@@ -124,6 +125,7 @@ size_t PinyinLookup::prepare_table_cache(int nstep, int total_pinyin){
             break;
     }
     total_len = std_lite::min(len, total_len);
+#endif
 
     for ( len = 1; len <= total_len; ++len){
 	PhraseIndexRanges * ranges = &g_array_index(m_table_cache, PhraseIndexRanges, len);
@@ -240,10 +242,6 @@ bool PinyinLookup::search_bigram(IBranchIterator * iter,
     if ( CONSTRAINT_NOSEARCH == constraint->m_type )
 	return false;
 
-#if 0
-    GArray * lookup_content = (GArray *) g_ptr_array_index(m_steps_content, nstep);
-#endif
-
     bool found = false;
     BigramPhraseArray bigram_phrase_items = g_array_new(FALSE, FALSE, 
 					       sizeof(BigramPhraseItem));
@@ -254,64 +252,45 @@ bool PinyinLookup::search_bigram(IBranchIterator * iter,
 	SingleGram * system, * user;
 	m_system_bigram->load(index_token, system);
         m_user_bigram->load(index_token, user);
-	if ( system && user ){
-	    guint32 total_freq;
-	    assert(user->get_total_freq(total_freq));
-	    assert(system->set_total_freq(total_freq));
-	}
+
+        if ( !merge_single_gram(&m_merged_single_gram, system, user) )
+            continue;
+
 	if ( CONSTRAINT_ONESTEP == constraint->m_type ){
 	    phrase_token_t token = constraint->m_token;
-	    if ( system ){
-		guint32 freq;
-		if( system->get_freq(token, freq) ){
-		    guint32 total_freq;
-		    system->get_total_freq(total_freq);
-		    gfloat bigram_poss = freq / (gfloat) total_freq;
-		    found =  bigram_gen_next_step(nstep, &cur_step, token, bigram_poss) || found;
-		}
-	    }
-	    if ( user ){
-		guint32 freq;
-		if( user->get_freq(token, freq) ){
-		    guint32 total_freq;
-		    user->get_total_freq(total_freq);
-		    gfloat bigram_poss = freq / (gfloat) total_freq;
-		    found = bigram_gen_next_step(nstep, &cur_step, token, bigram_poss) || found;
-		}
-	    }
+
+            guint32 freq;
+            if( m_merged_single_gram.get_freq(token, freq) ){
+                guint32 total_freq;
+                m_merged_single_gram.get_total_freq(total_freq);
+                gfloat bigram_poss = freq / (gfloat) total_freq;
+                found =  bigram_gen_next_step(nstep, &cur_step, token, bigram_poss) || found;
+            }
 	}
 
 	if ( NO_CONSTRAINT == constraint->m_type ){
-	    for ( size_t i = 1; i < m_table_cache->len 
-		      && i <= MAX_PHRASE_LENGTH;++i ){
+	    for ( size_t i = 1; i < m_table_cache->len
+		      && i <= MAX_PHRASE_LENGTH; ++i ){
                 lookup_constraint_t * constraint = &g_array_index(m_constraints, lookup_constraint_t, nstep + i - 1);
-                if ( constraint->m_type != NO_CONSTRAINT )
-                     continue;
+                if ( constraint->m_type == CONSTRAINT_NOSEARCH )
+                    break;
 
 		PhraseIndexRanges * ranges = &g_array_index(m_table_cache, PhraseIndexRanges, i);
 		for( size_t m = 0; m < PHRASE_INDEX_LIBRARY_COUNT; ++m){
 		    GArray * array = (*ranges)[m];
 		    if ( !array ) continue;
+
 		    for ( size_t n = 0; n < array->len; ++n){
-			PhraseIndexRange * range = &g_array_index(array, PhraseIndexRange, n);
-			if (system){
-			    g_array_set_size(bigram_phrase_items, 0);
-			    system->search(range, bigram_phrase_items);
-			    for( size_t k = 0; k < bigram_phrase_items->len; 
-				 ++k){
-				BigramPhraseItem * item = &g_array_index(bigram_phrase_items, BigramPhraseItem, k);
-				found = bigram_gen_next_step(nstep, &cur_step, item->m_token, item->m_freq) || found;
-			    }
-			}
-			if (user){
-			    g_array_set_size(bigram_phrase_items, 0);
-			    user->search(range, bigram_phrase_items);
-			    for( size_t k  = 0; k < bigram_phrase_items->len;
-				 ++k){
-				BigramPhraseItem * item = &g_array_index(bigram_phrase_items, BigramPhraseItem, k);
-				found = bigram_gen_next_step(nstep, &cur_step, item->m_token, item->m_freq) || found;
-			    }
-			}
+			PhraseIndexRange * range =
+                            &g_array_index(array, PhraseIndexRange, n);
+
+                        g_array_set_size(bigram_phrase_items, 0);
+                        m_merged_single_gram.search(range, bigram_phrase_items);
+                        for( size_t k = 0; k < bigram_phrase_items->len;
+                             ++k){
+                            BigramPhraseItem * item = &g_array_index(bigram_phrase_items, BigramPhraseItem, k);
+                            found = bigram_gen_next_step(nstep, &cur_step, item->m_token, item->m_freq) || found;
+                        }
 		    }
 		}
 	    }
@@ -440,6 +419,7 @@ bool PinyinLookup::final_step(MatchResults & results){
     return true;
 }
 
+#if 0
 bool PinyinLookup::train_result(ChewingKeyVector keys, CandidateConstraints constraints, MatchResults & results){
     bool train_next = false;
     ChewingKey * pinyin_keys = (ChewingKey *)keys->data;
@@ -496,6 +476,86 @@ bool PinyinLookup::train_result(ChewingKeyVector keys, CandidateConstraints cons
 	    }
 	}
 	last_token = *token;
+    }
+    return true;
+}
+#endif
+
+
+bool PinyinLookup::train_result2(ChewingKeyVector keys,
+                                 CandidateConstraints constraints,
+                                 MatchResults results) {
+    const guint32 initial_seed = 23 * 15;
+    const guint32 expand_factor = 2;
+    const guint32 unigram_factor = 7;
+    const guint32 pinyin_factor = 1;
+    const guint32 ceiling_seed = 23 * 15 * 64;
+
+    /* begin training based on constraints and results. */
+    bool train_next = false;
+    ChewingKey * pinyin_keys = (ChewingKey *) keys->data;
+
+    phrase_token_t last_token = sentence_start;
+    /* constraints->len + 1 == results->len */
+    for (size_t i = 0; i < constraints->len; ++i) {
+        phrase_token_t * token = &g_array_index(results, phrase_token_t, i);
+        if (null_token == *token)
+            continue;
+
+        lookup_constraint_t * constraint = &g_array_index
+            (constraints, lookup_constraint_t, i);
+        if (train_next || CONSTRAINT_ONESTEP == constraint->m_type) {
+            if (CONSTRAINT_ONESTEP == constraint->m_type) {
+                assert(*token == constraint->m_token);
+                train_next = true;
+            } else {
+                train_next = false;
+            }
+
+            guint32 seed = initial_seed;
+            /* train bi-gram first, and get train seed. */
+            if (last_token) {
+                SingleGram * user = NULL;
+                m_user_bigram->load(last_token, user);
+
+                guint32 total_freq = 0;
+                if (!user) {
+                    user = new SingleGram;
+                }
+                assert(user->get_total_freq(total_freq));
+
+                guint32 freq = 0;
+                /* compute train factor */
+                if (!user->get_freq(*token, freq)) {
+                    assert(user->insert_freq(*token, 0));
+                    seed = initial_seed;
+                } else {
+                    seed = std_lite::max(freq, initial_seed);
+                    seed *= expand_factor;
+                    seed = std_lite::min(seed, ceiling_seed);
+                }
+
+                /* protect against total_freq overflow */
+                if (seed > 0 && total_freq > total_freq + seed)
+                    goto next;
+
+                assert(user->set_total_freq(total_freq + seed));
+                /* if total_freq is not overflow, then freq won't overflow. */
+                assert(user->set_freq(*token, freq + seed));
+                assert(m_user_bigram->store(last_token, user));
+            next:
+                if (user)
+                    delete user;
+            }
+
+            /* train uni-gram */
+	    m_phrase_index->get_phrase_item(*token, m_cache_phrase_item);
+	    m_cache_phrase_item.increase_pronunciation_possibility
+                (m_options, pinyin_keys + i, seed * pinyin_factor);
+	    m_phrase_index->add_unigram_frequency
+                (*token, seed * unigram_factor);
+        }
+        last_token = *token;
     }
     return true;
 }

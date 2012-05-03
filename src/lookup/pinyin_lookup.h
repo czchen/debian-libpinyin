@@ -28,7 +28,7 @@
 #include "novel_types.h"
 #include "chewing_key.h"
 #include "phrase_index.h"
-#include "chewing_large_table.h"
+#include "ngram.h"
 #include "lookup.h"
 
 
@@ -85,12 +85,13 @@ private:
     static const gfloat unigram_lambda;
     
     PhraseItem m_cache_phrase_item;
+    SingleGram m_merged_single_gram;
 protected:
     //saved varibles
     CandidateConstraints m_constraints;
     ChewingKeyVector m_keys;
     
-    ChewingLargeTable * m_pinyin_table;
+    FacadeChewingTable * m_pinyin_table;
     FacadePhraseIndex * m_phrase_index;
     pinyin_option_t m_options;
     Bigram * m_system_bigram;
@@ -122,7 +123,7 @@ protected:
     
     bool final_step(MatchResults & results);
 public:
-    PinyinLookup(pinyin_option_t options, ChewingLargeTable * pinyin_table,
+    PinyinLookup(pinyin_option_t options, FacadeChewingTable * pinyin_table,
                  FacadePhraseIndex * phrase_index, Bigram * system_bigram,
                  Bigram * user_bigram);
 
@@ -135,7 +136,7 @@ public:
 
     bool get_best_match(ChewingKeyVector keys, CandidateConstraints constraints, MatchResults & results);
     
-    bool train_result(ChewingKeyVector keys, CandidateConstraints constraints, MatchResults & results);
+    bool train_result2(ChewingKeyVector keys, CandidateConstraints constraints, MatchResults results);
 
     bool convert_to_utf8(MatchResults results,
                          /* out */ char * & result_string)

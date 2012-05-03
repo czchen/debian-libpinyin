@@ -21,6 +21,8 @@
 
 
 #include "pinyin.h"
+#include <stdio.h>
+#include <unistd.h>
 #include <glib/gstdio.h>
 #include "pinyin_internal.h"
 
@@ -33,8 +35,8 @@ struct _pinyin_context_t{
     DoublePinyinParser2 * m_double_pinyin_parser;
     ChewingParser2 * m_chewing_parser;
 
-    ChewingLargeTable * m_pinyin_table;
-    PhraseLargeTable * m_phrase_table;
+    FacadeChewingTable * m_pinyin_table;
+    FacadePhraseTable * m_phrase_table;
     FacadePhraseIndex * m_phrase_index;
     Bigram * m_system_bigram;
     Bigram * m_user_bigram;
@@ -106,7 +108,7 @@ pinyin_context_t * pinyin_init(const char * systemdir, const char * userdir){
 
     check_format(context->m_user_dir);
 
-    context->m_pinyin_table = new ChewingLargeTable(context->m_options);
+    context->m_pinyin_table = new FacadeChewingTable;
     MemoryChunk * chunk = new MemoryChunk;
     gchar * filename = g_build_filename
         (context->m_system_dir, "pinyin_index.bin", NULL);
@@ -115,13 +117,14 @@ pinyin_context_t * pinyin_init(const char * systemdir, const char * userdir){
         return NULL;
     }
     g_free(filename);
-    context->m_pinyin_table->load(chunk);
+
+    context->m_pinyin_table->load(context->m_options, chunk, NULL);
 
     context->m_full_pinyin_parser = new FullPinyinParser2;
     context->m_double_pinyin_parser = new DoublePinyinParser2;
     context->m_chewing_parser = new ChewingParser2;
 
-    context->m_phrase_table = new PhraseLargeTable;
+    context->m_phrase_table = new FacadePhraseTable;
     chunk = new MemoryChunk;
     filename = g_build_filename(context->m_system_dir, "phrase_index.bin", NULL);
     if (!chunk->load(filename)) {
@@ -129,7 +132,7 @@ pinyin_context_t * pinyin_init(const char * systemdir, const char * userdir){
         return NULL;
     }
     g_free(filename);
-    context->m_phrase_table->load(chunk);
+    context->m_phrase_table->load(chunk, NULL);
 
     context->m_phrase_index = new FacadePhraseIndex;
     MemoryChunk * log = new MemoryChunk; chunk = new MemoryChunk;
@@ -194,10 +197,15 @@ bool pinyin_save(pinyin_context_t * context){
                                         "gb_char.bin", NULL);
     oldchunk->load(filename);
     g_free(filename);
+
     context->m_phrase_index->diff(1, oldchunk, newlog);
+    gchar * tmpfilename = g_build_filename(context->m_user_dir,
+                                           "gb_char.dbin.tmp", NULL);
     filename = g_build_filename(context->m_user_dir,
                                 "gb_char.dbin", NULL);
-    newlog->save(filename);
+    newlog->save(tmpfilename);
+    rename(tmpfilename, filename);
+    g_free(tmpfilename);
     g_free(filename);
     delete newlog;
 
@@ -208,14 +216,23 @@ bool pinyin_save(pinyin_context_t * context){
     g_free(filename);
 
     context->m_phrase_index->diff(2, oldchunk, newlog);
+    tmpfilename = g_build_filename(context->m_user_dir,
+                                   "gbk_char.dbin.tmp", NULL);
     filename = g_build_filename(context->m_user_dir,
                                 "gbk_char.dbin", NULL);
-    newlog->save(filename);
+    newlog->save(tmpfilename);
+    rename(tmpfilename, filename);
+    g_free(tmpfilename);
     g_free(filename);
     delete newlog;
 
+    tmpfilename = g_build_filename(context->m_user_dir,
+                                   "user.db.tmp", NULL);
+    unlink(tmpfilename);
     filename = g_build_filename(context->m_user_dir, "user.db", NULL);
-    context->m_user_bigram->save_db(filename);
+    context->m_user_bigram->save_db(tmpfilename);
+    rename(tmpfilename, filename);
+    g_free(tmpfilename);
     g_free(filename);
 
     mark_version(context->m_user_dir);
@@ -424,7 +441,8 @@ size_t pinyin_parse_more_chewings(pinyin_instance_t * instance,
 bool pinyin_in_chewing_keyboard(pinyin_instance_t * instance,
                                 const char key, const char ** symbol) {
     pinyin_context_t * & context = instance->m_context;
-    return context->m_chewing_parser->in_chewing_scheme(key, symbol);
+    return context->m_chewing_parser->in_chewing_scheme
+        (context->m_options, key, symbol);
 }
 
 
@@ -604,7 +622,7 @@ bool pinyin_train(pinyin_instance_t * instance){
     pinyin_context_t * & context = instance->m_context;
     context->m_modified = true;
 
-    bool retval = context->m_pinyin_lookup->train_result
+    bool retval = context->m_pinyin_lookup->train_result2
         (instance->m_pinyin_keys, instance->m_constraints,
          instance->m_match_results);
 

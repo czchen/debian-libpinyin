@@ -23,7 +23,7 @@
 #include "stl_lite.h"
 #include "novel_types.h"
 #include "phrase_index.h"
-#include "phrase_large_table.h"
+#include "facade_phrase_table.h"
 #include "ngram.h"
 #include "phrase_lookup.h"
 
@@ -32,7 +32,7 @@ using namespace pinyin;
 const gfloat PhraseLookup::bigram_lambda = LAMBDA_PARAMETER;
 const gfloat PhraseLookup::unigram_lambda = 1 - LAMBDA_PARAMETER;
 
-PhraseLookup::PhraseLookup(PhraseLargeTable * phrase_table,
+PhraseLookup::PhraseLookup(FacadePhraseTable * phrase_table,
                            FacadePhraseIndex * phrase_index,
                            Bigram * system_bigram,
                            Bigram * user_bigram){
@@ -147,29 +147,21 @@ bool PhraseLookup::search_bigram(int nstep, phrase_token_t token){
         m_system_bigram->load(index_token, system);
         m_user_bigram->load(index_token, user);
 
-        if ( system && user ){
+        if ( !merge_single_gram(&m_merged_single_gram, system, user) )
+            continue;
+
+        guint32 freq;
+        if ( m_merged_single_gram.get_freq(token, freq) ){
             guint32 total_freq;
-            assert(user->get_total_freq(total_freq));
-            assert(system->set_total_freq(total_freq));
+            m_merged_single_gram.get_total_freq(total_freq);
+            gfloat bigram_poss = freq / (gfloat) total_freq;
+            found = bigram_gen_next_step(nstep, cur_value, token, bigram_poss) || found;
         }
-        if ( system ){
-            guint32 freq;
-            if ( system->get_freq(token, freq) ){
-                guint32 total_freq;
-                system->get_total_freq(total_freq);
-                gfloat bigram_poss = freq / (gfloat) total_freq;
-                found = bigram_gen_next_step(nstep, cur_value, token, bigram_poss) || found;
-            }
-        }
-        if ( user ){
-            guint32 freq;
-            if ( user->get_freq(token, freq) ){
-                guint32 total_freq;
-                user->get_total_freq(total_freq);
-                gfloat bigram_poss = freq / (gfloat) total_freq;
-                found = bigram_gen_next_step(nstep, cur_value, token, bigram_poss) || found;
-            }
-        }
+
+        if (system)
+            delete system;
+        if (user)
+            delete user;
     }
 
     return found;
