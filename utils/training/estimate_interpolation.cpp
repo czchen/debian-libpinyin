@@ -26,6 +26,7 @@
 #include <math.h>
 #include <glib.h>
 #include "pinyin_internal.h"
+#include "utils_helper.h"
 
 parameter_t compute_interpolation(SingleGram * deleted_bigram,
 				  FacadePhraseIndex * unigram,
@@ -63,7 +64,6 @@ parameter_t compute_interpolation(SingleGram * deleted_bigram,
 	    }
 
 	    {
-		guint32 freq = 0;
 		parameter_t elem_poss = 0;
 		PhraseItem item;
 		if (!unigram->get_phrase_item(token, item)){
@@ -90,16 +90,8 @@ parameter_t compute_interpolation(SingleGram * deleted_bigram,
     
 int main(int argc, char * argv[]){
     FacadePhraseIndex phrase_index;
-    
-    //gb_char binary file
-    MemoryChunk * chunk = new MemoryChunk;
-    chunk->load("gb_char.bin");
-    phrase_index.load(1, chunk);
-    
-    //gbk_char binary file
-    chunk = new MemoryChunk;
-    chunk->load("gbk_char.bin");
-    phrase_index.load(2, chunk);
+    if (!load_phrase_index(&phrase_index))
+        exit(ENOENT);
 
     Bigram bigram;
     bigram.attach("bigram.db", ATTACH_READONLY);

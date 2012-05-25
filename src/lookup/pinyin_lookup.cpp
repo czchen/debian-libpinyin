@@ -35,6 +35,22 @@ using namespace pinyin;
 const gfloat PinyinLookup::bigram_lambda = LAMBDA_PARAMETER;
 const gfloat PinyinLookup::unigram_lambda = 1 - LAMBDA_PARAMETER;
 
+static void clear_steps(GPtrArray * steps_index, GPtrArray * steps_content){
+    /* clear steps_index */
+    for ( size_t i = 0; i < steps_index->len; ++i){
+	GHashTable * table = (GHashTable *) g_ptr_array_index(steps_index, i);
+	g_hash_table_destroy(table);
+	g_ptr_array_index(steps_index, i) = NULL;
+    }
+
+    /* clear steps_content */
+    for ( size_t i = 0; i < steps_content->len; ++i){
+	GArray * array = (GArray *) g_ptr_array_index(steps_content, i);
+	g_array_free(array, TRUE);
+	g_ptr_array_index(steps_content, i) = NULL;
+    }
+}
+
 PinyinLookup::PinyinLookup(pinyin_option_t options,
                            FacadeChewingTable * pinyin_table,
                            FacadePhraseIndex * phrase_index,
@@ -57,59 +73,25 @@ PinyinLookup::~PinyinLookup(){
     if ( m_winner_tree )
 	delete m_winner_tree;
     m_winner_tree = NULL;
+
     //free resources
     for ( size_t i = 0; i < m_table_cache->len; ++i){
 	PhraseIndexRanges * ranges = &g_array_index(m_table_cache, PhraseIndexRanges, i);
-	destroy_pinyin_lookup(*ranges);
+	m_phrase_index->destroy_ranges(*ranges);
     }
-    //g_array_set_size(m_table_cache, 1);
+
     g_array_free(m_table_cache, TRUE);
 
-    //free m_steps_index
-    for ( size_t i = 0; i < m_steps_index->len; ++i){
-	GHashTable * table = (GHashTable *) g_ptr_array_index(m_steps_index, i);
-	g_hash_table_destroy(table);
-	g_ptr_array_index(m_steps_index, i) = NULL;
-    }
+    clear_steps(m_steps_index, m_steps_content);
     g_ptr_array_free(m_steps_index, TRUE);
-
-    //free m_steps_content
-    for ( size_t i = 0; i < m_steps_content->len; ++i){
-	GArray * array = (GArray *) g_ptr_array_index(m_steps_content, i);
-	g_array_free(array, TRUE);
-	g_ptr_array_index(m_steps_content, i) = NULL;
-    }
     g_ptr_array_free(m_steps_content, TRUE);
-        
-}
-
-bool PinyinLookup::prepare_pinyin_lookup(PhraseIndexRanges ranges){
-    //memset(ranges, 0, sizeof(ranges));
-    for ( size_t i = 0; i < PHRASE_INDEX_LIBRARY_COUNT; ++i ){
-	GArray * & array = ranges[i];
-	assert(NULL == array);
-	if (m_phrase_index->m_sub_phrase_indices[i]){
-	    array = g_array_new(FALSE, FALSE, sizeof (PhraseIndexRange));
-	}
-    }
-	return true;
-}
-
-bool PinyinLookup::destroy_pinyin_lookup(PhraseIndexRanges ranges){
-    for ( size_t i = 0; i < PHRASE_INDEX_LIBRARY_COUNT ; ++i){
-	GArray * & array = ranges[i];
-	if ( array )
-	    g_array_free(array, TRUE);
-	array = NULL;
-    }
-	return true;
 }
 
 size_t PinyinLookup::prepare_table_cache(int nstep, int total_pinyin){
     /* free resources */
     for ( size_t i = 0; i < m_table_cache->len; ++i){
 	PhraseIndexRanges * ranges = &g_array_index(m_table_cache, PhraseIndexRanges, i);
-	destroy_pinyin_lookup(*ranges);
+	m_phrase_index->destroy_ranges(*ranges);
     }
 
     ChewingKey * pinyin_keys = (ChewingKey *)m_keys->data;
@@ -117,19 +99,10 @@ size_t PinyinLookup::prepare_table_cache(int nstep, int total_pinyin){
     g_array_set_size(m_table_cache, MAX_PHRASE_LENGTH + 1);
 
     int len, total_len = std_lite::min(total_pinyin, MAX_PHRASE_LENGTH);
-#if 0
-    /* probe constraint */
-    for ( len = 1; len <= total_len; ++len) {
-        lookup_constraint_t * constraint = &g_array_index(m_constraints, lookup_constraint_t, nstep + len);
-        if (constraint->m_type == CONSTRAINT_ONESTEP)
-            break;
-    }
-    total_len = std_lite::min(len, total_len);
-#endif
 
     for ( len = 1; len <= total_len; ++len){
 	PhraseIndexRanges * ranges = &g_array_index(m_table_cache, PhraseIndexRanges, len);
-	prepare_pinyin_lookup(*ranges);
+	m_phrase_index->prepare_ranges(*ranges);
 	int result = m_pinyin_table->search(len, pinyin_keys, *ranges);
 	if (!( result & SEARCH_CONTINUED)){
 	    ++len;
@@ -140,55 +113,42 @@ size_t PinyinLookup::prepare_table_cache(int nstep, int total_pinyin){
     return m_table_cache->len - 1;
 }
 
-bool PinyinLookup::get_best_match(ChewingKeyVector keys, CandidateConstraints constraints, MatchResults & results){
+bool PinyinLookup::get_best_match(TokenVector prefixes,
+                                  ChewingKeyVector keys,
+                                  CandidateConstraints constraints,
+                                  MatchResults & results){
     //g_array_set_size(results, 0);
 
     m_constraints = constraints;
     m_keys = keys;
     int nstep = keys->len + 1;
 
-    //free m_steps_index
-    for ( size_t i = 0; i < m_steps_index->len; ++i){
-	GHashTable * table = (GHashTable *) g_ptr_array_index(m_steps_index, i);
-	g_hash_table_destroy(table);
-	g_ptr_array_index(m_steps_index, i) = NULL;
-    }
-
-    //free m_steps_content
-    for ( size_t i = 0; i < m_steps_content->len; ++i){
-	GArray * array = (GArray *) g_ptr_array_index(m_steps_content, i);
-	g_array_free(array, TRUE);
-	g_ptr_array_index(m_steps_content, i) = NULL;
-    }    
+    clear_steps(m_steps_index, m_steps_content);
     
     //add null start step
     g_ptr_array_set_size(m_steps_index, nstep);
     g_ptr_array_set_size(m_steps_content, nstep);
 
-    for ( int i = 0 ; i < nstep; ++i ){
+    for ( int i = 0; i < nstep; ++i ){
 	//initialize m_steps_index
 	g_ptr_array_index(m_steps_index, i) = g_hash_table_new(g_direct_hash, g_direct_equal);
 	//initialize m_steps_content
 	g_ptr_array_index(m_steps_content, i) = g_array_new(FALSE, FALSE, sizeof(lookup_value_t));
     }
-    
-    lookup_key_t initial_key = sentence_start;
-    lookup_value_t initial_value(log(1));
-    initial_value.m_handles[1] = sentence_start;
-    GArray * initial_step_content = (GArray *) g_ptr_array_index(m_steps_content, 0);
-    initial_step_content = g_array_append_val(initial_step_content, initial_value);
-    GHashTable * initial_step_index = (GHashTable *) g_ptr_array_index(m_steps_index, 0);
-    g_hash_table_insert(initial_step_index, GUINT_TO_POINTER(initial_key), GUINT_TO_POINTER(initial_step_content->len - 1));
 
-#if 0
-    /* Note: this section has been dropped to enable pi-gram. */
-    LookupStepContent tmp_step = (LookupStepContent) g_ptr_array_index(m_steps_content, 0);
-    IBranchIterator * iter = m_winner_tree->get_iterator(tmp_step);
-    size_t npinyin = prepare_table_cache(0, keys->len);
-    search_unigram(iter, 0, npinyin);
-    delete iter;
-#endif
+    for ( int i = 0; i < prefixes->len; ++i ){
+        phrase_token_t token = g_array_index(prefixes, phrase_token_t, i);
+        lookup_key_t initial_key = token;
+        lookup_value_t initial_value(log(1));
+        initial_value.m_handles[1] = token;
 
+        GArray * initial_step_content = (GArray *) g_ptr_array_index(m_steps_content, 0);
+        initial_step_content = g_array_append_val(initial_step_content, initial_value);
+        GHashTable * initial_step_index = (GHashTable *) g_ptr_array_index(m_steps_index, 0);
+        g_hash_table_insert(initial_step_index, GUINT_TO_POINTER(initial_key), GUINT_TO_POINTER(initial_step_content->len - 1));
+    }
+
+    /* begin the Viterbi beam search. */
     for ( int i = 0; i < nstep - 1; ++i ){
 	LookupStepContent tmp_step = (LookupStepContent) g_ptr_array_index(m_steps_content, i);
 	IBranchIterator * iter = m_winner_tree->get_iterator(tmp_step);
@@ -419,69 +379,6 @@ bool PinyinLookup::final_step(MatchResults & results){
     return true;
 }
 
-#if 0
-bool PinyinLookup::train_result(ChewingKeyVector keys, CandidateConstraints constraints, MatchResults & results){
-    bool train_next = false;
-    ChewingKey * pinyin_keys = (ChewingKey *)keys->data;
-    //TODO: verify the new training method.
-    phrase_token_t last_token = sentence_start;
-    // constraints->len + 1 == results->len
-    const guint32 train_factor = 23 * 25;
-    for ( size_t i = 0; i < constraints->len; ++i){
-	phrase_token_t * token = &g_array_index(results, phrase_token_t, i);
-	if ( *token == null_token )
-	    continue;
-	lookup_constraint_t * constraint = &g_array_index(constraints, lookup_constraint_t, i);
-	if (train_next || CONSTRAINT_ONESTEP == constraint->m_type ){
-	    if (CONSTRAINT_ONESTEP == constraint->m_type){
-		assert(*token == constraint->m_token);
-		train_next = true;
-	    }else{
-		train_next = false;
-	    }
-            //add pi-gram frequency
-            //printf("i:%d\tlast_token:%d\ttoken:%d\n", i, last_token, *token);
-	    m_phrase_index->get_phrase_item(*token, m_cache_phrase_item);
-	    m_cache_phrase_item.increase_pronunciation_possibility(m_options, pinyin_keys + i, train_factor);
-	    m_phrase_index->add_unigram_frequency(*token, train_factor * 10);
-	    if ( last_token ){
-		SingleGram * system, *user;
-		m_system_bigram->load(last_token, system);
-                m_user_bigram->load(last_token, user);
-		guint32 total_freq;
-		if ( !user ){
-		    total_freq = 0;
-		    if ( system )
-			assert(system->get_total_freq(total_freq));
-		    user = new SingleGram;
-		    user->set_total_freq(total_freq);
-		}
-		guint32 freq = 0;
-		if ( !user->get_freq(*token, freq)){
-		    if (system) system->get_freq(*token, freq);
-		    user->insert_freq(*token, freq);
-		}
-		assert(user->get_total_freq(total_freq));
-		//protect against total_freq overflow.
-		if ( train_factor > 0 && total_freq > total_freq + train_factor)
-		    goto next;
-		assert(user->set_total_freq(total_freq + train_factor));
-		assert(user->get_freq(*token, freq));
-		//if total_freq is not overflow, then freq won't overflow.
-		assert(user->set_freq(*token, freq + train_factor));
-		assert(m_user_bigram->store(last_token, user));
-	    next:
-		if (system) delete system;
-		if (user) delete user;
-	    }
-	}
-	last_token = *token;
-    }
-    return true;
-}
-#endif
-
-
 bool PinyinLookup::train_result2(ChewingKeyVector keys,
                                  CandidateConstraints constraints,
                                  MatchResults results) {
@@ -611,21 +508,21 @@ bool PinyinLookup::clear_constraint(CandidateConstraints constraints, size_t ind
 	return true;
 }
 
-bool PinyinLookup::validate_constraint(CandidateConstraints constraints, ChewingKeyVector m_parsed_keys){
+bool PinyinLookup::validate_constraint(CandidateConstraints constraints, ChewingKeyVector keys){
     //resize constraints array
     size_t constraints_length = constraints->len;
-    if ( m_parsed_keys->len > constraints_length ){
-	g_array_set_size(constraints, m_parsed_keys->len);
+    if ( keys->len > constraints_length ){
+	g_array_set_size(constraints, keys->len);
 	//initialize new element
-	for( size_t i = constraints_length; i < m_parsed_keys->len; ++i){
+	for( size_t i = constraints_length; i < keys->len; ++i){
 	    lookup_constraint_t * constraint = &g_array_index(constraints, lookup_constraint_t, i);
 	    constraint->m_type = NO_CONSTRAINT;
 	}
-    }else if (m_parsed_keys->len < constraints_length ){
-	g_array_set_size(constraints, m_parsed_keys->len);
+    }else if (keys->len < constraints_length ){
+	g_array_set_size(constraints, keys->len);
     }
     
-    ChewingKey * pinyin_keys = (ChewingKey *)m_parsed_keys->data;
+    ChewingKey * pinyin_keys = (ChewingKey *)keys->data;
     
     for ( size_t i = 0; i < constraints->len; ++i){
 	lookup_constraint_t * constraint = &g_array_index(constraints, lookup_constraint_t, i);

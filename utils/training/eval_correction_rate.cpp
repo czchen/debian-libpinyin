@@ -21,6 +21,7 @@
 
 
 #include "pinyin_internal.h"
+#include "utils_helper.h"
 
 
 void print_help(){
@@ -58,6 +59,11 @@ bool get_possible_pinyin(FacadePhraseIndex * phrase_index,
 
 bool get_best_match(PinyinLookup * pinyin_lookup,
                     ChewingKeyVector keys, TokenVector tokens){
+    /* prepare the prefixes for get_best_match. */
+    TokenVector prefixes = g_array_new
+        (FALSE, FALSE, sizeof(phrase_token_t));
+    g_array_append_val(prefixes, sentence_start);
+
     /* initialize constraints. */
     CandidateConstraints constraints = g_array_new
         (FALSE, FALSE, sizeof(lookup_constraint_t));
@@ -68,7 +74,11 @@ bool get_best_match(PinyinLookup * pinyin_lookup,
         constraint->m_type = NO_CONSTRAINT;
     }
 
-    return pinyin_lookup->get_best_match(keys, constraints, tokens);
+    bool retval = pinyin_lookup->get_best_match(prefixes, keys, constraints, tokens);
+
+    g_array_free(prefixes, TRUE);
+    g_array_free(constraints, TRUE);
+    return retval;
 }
 
 bool do_one_test(PinyinLookup * pinyin_lookup,
@@ -109,22 +119,18 @@ int main(int argc, char * argv[]){
     pinyin_option_t options = USE_TONE;
     FacadeChewingTable largetable;
 
-    MemoryChunk * new_chunk = new MemoryChunk;
-    new_chunk->load("pinyin_index.bin");
-    largetable.load(options, new_chunk, NULL);
+    MemoryChunk * chunk = new MemoryChunk;
+    chunk->load("pinyin_index.bin");
+    largetable.load(options, chunk, NULL);
 
     FacadePhraseIndex phrase_index;
-    new_chunk = new MemoryChunk;
-    new_chunk->load("gb_char.bin");
-    phrase_index.load(1, new_chunk);
-    new_chunk = new MemoryChunk;
-    new_chunk->load("gbk_char.bin");
-    phrase_index.load(2, new_chunk);
+    if (!load_phrase_index(&phrase_index))
+        exit(ENOENT);
 
     FacadePhraseTable phrases;
-    new_chunk = new MemoryChunk;
-    new_chunk->load("phrase_index.bin");
-    phrases.load(new_chunk, NULL);
+    chunk = new MemoryChunk;
+    chunk->load("phrase_index.bin");
+    phrases.load(chunk, NULL);
 
     Bigram system_bigram;
     system_bigram.attach("bigram.db", ATTACH_READONLY);
@@ -154,7 +160,7 @@ int main(int argc, char * argv[]){
             linebuf[strlen(linebuf)-1] = '\0';
 
         glong phrase_len = 0;
-        utf16_t * phrase = g_utf8_to_utf16(linebuf, -1, NULL, &phrase_len, NULL);
+        ucs4_t * phrase = g_utf8_to_ucs4(linebuf, -1, NULL, &phrase_len, NULL);
 
         token = 0;
         if ( 0 != phrase_len ) {

@@ -7,7 +7,7 @@ size_t bench_times = 100000;
 
 int main(int argc, char * argv[]){
     PhraseItem phrase_item;
-    utf16_t string1 = 2;
+    ucs4_t string1 = 2;
     ChewingKey key1 = ChewingKey(CHEWING_CH, CHEWING_ZERO_MIDDLE, CHEWING_ENG);
     ChewingKey key2 = ChewingKey(CHEWING_SH, CHEWING_ZERO_MIDDLE, CHEWING_ANG);
 
@@ -33,7 +33,7 @@ int main(int argc, char * argv[]){
 
     assert(phrase_item.get_unigram_frequency() == 0);
 
-    utf16_t string2;
+    ucs4_t string2;
     phrase_item.get_phrase_string(&string2);
     assert(string1 == string2);
 
@@ -71,26 +71,25 @@ int main(int argc, char * argv[]){
     }
 
     FacadePhraseIndex phrase_index_load;
+    for (size_t i = 0; i < PHRASE_INDEX_LIBRARY_COUNT; ++i) {
+        const char * tablename = pinyin_table_files[i];
+        if (NULL == tablename)
+            continue;
 
-    FILE* infile = fopen("../../data/gb_char.table", "r");
-    if ( NULL == infile ){
-	fprintf(stderr, "open gb_char.table failed!\n");
-	exit(ENOENT);
+        gchar * filename = g_build_filename("..", "..", "data",
+                                            tablename, NULL);
+        FILE* tablefile = fopen(filename, "r");
+        if ( NULL == tablefile ){
+            fprintf(stderr, "open %s failed!\n", tablename);
+            exit(ENOENT);
+        }
+
+        phrase_index_load.load_text(i, tablefile);
+        fclose(tablefile);
+        g_free(filename);
     }
 
-    phrase_index_load.load_text(1, infile);
-    fclose(infile);
-
-    infile = fopen("../../data/gbk_char.table", "r");
-    if ( NULL == infile ){
-	fprintf(stderr, "open gbk_char.table failed!\n");
-	exit(ENOENT);
-    }
-
-    phrase_index_load.load_text(2, infile);
-    fclose(infile);
-
-    phrase_index.compat();
+    phrase_index.compact();
 
     MemoryChunk* store1 = new MemoryChunk;
     phrase_index_load.store(1, store1);
@@ -100,15 +99,15 @@ int main(int argc, char * argv[]){
     phrase_index_load.store(2, store2);
     phrase_index_load.load(2, store2);
 
-    phrase_index.compat();
+    phrase_index.compact();
 
     phrase_index_load.get_phrase_item(16870553, item2);
     assert( item2.get_phrase_length() == 14);
     assert( item2.get_n_pronunciation() == 1);
 
-    gunichar2 buf[1024];
+    ucs4_t buf[1024];
     item2.get_phrase_string(buf);
-    char * string = g_utf16_to_utf8( buf, 14, NULL, NULL, NULL);
+    char * string = g_ucs4_to_utf8( buf, 14, NULL, NULL, NULL);
     printf("%s\n", string);
     g_free(string);
 
