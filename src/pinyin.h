@@ -35,9 +35,35 @@ extern "C" {
 
 typedef struct _pinyin_context_t pinyin_context_t;
 typedef struct _pinyin_instance_t pinyin_instance_t;
+typedef struct _lookup_candidate_t lookup_candidate_t;
+
+typedef GArray * CandidateVector; /* GArray of lookup_candidate_t */
+
+enum lookup_candidate_type_t{
+    NORMAL_CANDIDATE = 1,
+    DIVIDED_CANDIDATE,
+    RESPLIT_CANDIDATE
+};
+
+struct _lookup_candidate_t{
+    enum lookup_candidate_type_t m_candidate_type;
+    phrase_token_t m_token;
+    ChewingKeyRest m_orig_rest;
+    gchar * m_new_pinyins;
+    guint32 m_freq; /* the amplifed gfloat numerical value. */
+public:
+    _lookup_candidate_t() {
+        m_candidate_type = NORMAL_CANDIDATE;
+        m_token = null_token;
+        m_new_pinyins = NULL;
+        m_freq = 0;
+    }
+};
 
 struct _pinyin_instance_t{
     pinyin_context_t * m_context;
+    gchar * m_raw_full_pinyin;
+    TokenVector m_prefixes;
     ChewingKeyVector m_pinyin_keys;
     ChewingKeyRestVector m_pinyin_key_rests;
     CandidateConstraints m_constraints;
@@ -140,6 +166,18 @@ void pinyin_free_instance(pinyin_instance_t * instance);
  *
  */
 bool pinyin_guess_sentence(pinyin_instance_t * instance);
+
+/**
+ * pinyin_guess_sentence_with_prefix:
+ * @instance: the pinyin instance.
+ * @prefix: the prefix before the sentence.
+ * @returns: whether the sentence are guessed successfully.
+ *
+ * Guess a sentence from the saved pinyin keys with a prefix.
+ *
+ */
+bool pinyin_guess_sentence_with_prefix(pinyin_instance_t * instance,
+                                       const char * prefix);
 
 /**
  * pinyin_phrase_segment:
@@ -272,11 +310,25 @@ bool pinyin_get_candidates(pinyin_instance_t * instance,
                            TokenVector candidates);
 
 /**
+ * pinyin_get_full_pinyin_candidates:
+ * @instance: the pinyin instance.
+ * @offset: the offset in the pinyin keys.
+ * @candidates: the GArray of lookup_candidate_t candidates.
+ * @returns: whether a list of lookup_candidate_t candidates are gotten.
+ *
+ * Get the full pinyin candidates at the offset.
+ *
+ */
+bool pinyin_get_full_pinyin_candidates(pinyin_instance_t * instance,
+                                       size_t offset,
+                                       CandidateVector candidates);
+
+/**
  * pinyin_choose_candidate:
  * @instance: the pinyin instance.
  * @offset: the offset in the pinyin keys.
  * @token: the selected candidate.
- * @returns: the characters of the chosen candidate.
+ * @returns: the cursor after the chosen candidate.
  *
  * Choose an candidate at the offset.
  *
@@ -284,6 +336,20 @@ bool pinyin_get_candidates(pinyin_instance_t * instance,
 int pinyin_choose_candidate(pinyin_instance_t * instance,
                             size_t offset,
                             phrase_token_t token);
+
+/**
+ * pinyin_choose_full_pinyin_candidate:
+ * @instance: the pinyin instance.
+ * @offset: the offset in the pinyin keys.
+ * @candidate: the selected lookup_candidate_t candidate.
+ * @returns: the cursor after the chosen candidate.
+ *
+ * Choose a full pinyin candidate at the offset.
+ *
+ */
+int pinyin_choose_full_pinyin_candidate(pinyin_instance_t * instance,
+                                        size_t offset,
+                                        lookup_candidate_t * candidate);
 
 /**
  * pinyin_clear_constraint:
@@ -350,7 +416,7 @@ typedef ChewingKeyVector PinyinKeyVector;
 typedef ChewingKeyRestVector PinyinKeyPosVector;
 
 
-#define LIBPINYIN_FORMAT_VERSION  "0.5.92"
+#define LIBPINYIN_FORMAT_VERSION  "0.6.91"
 
 };
 

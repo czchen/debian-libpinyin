@@ -24,6 +24,9 @@
 
 namespace pinyin{
 
+/**
+ * PinyinTableFlag:
+ */
 enum PinyinTableFlag{
     IS_CHEWING = 1U << 1,
     IS_PINYIN = 1U << 2,
@@ -31,14 +34,15 @@ enum PinyinTableFlag{
     CHEWING_INCOMPLETE = 1U << 4,
     USE_TONE = 1U << 5,
     USE_DIVIDED_TABLE = 1U << 6,
-    USE_RESPLIT_TABLE = 1U << 7
+    USE_RESPLIT_TABLE = 1U << 7,
+    DYNAMIC_ADJUST = 1U << 8
 };
 
 /**
- * @brief enums of pinyin ambiguities.
+ * PinyinAmbiguity2:
  *
- * Some pinyin element maybe confused by somebody,
- * We allow these ambiguities.
+ * The enums of pinyin ambiguities.
+ *
  */
 enum PinyinAmbiguity2{
     PINYIN_AMB_C_CH = 1U << 9,
@@ -55,7 +59,10 @@ enum PinyinAmbiguity2{
 };
 
 /**
- * @brief enums of pinyin corrections.
+ * PinyinCorrection2:
+ *
+ * The enums of pinyin corrections.
+ *
  */
 
 enum PinyinCorrection2{

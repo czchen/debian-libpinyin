@@ -25,8 +25,7 @@
 #include <locale.h>
 #include <glib.h>
 #include "pinyin_internal.h"
-
-static PhraseLargeTable * g_phrases = NULL;
+#include "utils_helper.h"
 
 void print_help(){
     printf("Usage: gen_ngram [--skip-pi-gram-training]\n");
@@ -58,27 +57,18 @@ int main(int argc, char * argv[]){
 	++i;
     }
     
-    g_phrases = new PhraseLargeTable;
-    //init phrase lookup
+    PhraseLargeTable phrases;
+    /* init phrase table */
     MemoryChunk * chunk = new MemoryChunk;
     chunk->load("phrase_index.bin");
-    g_phrases->load(chunk);
+    phrases.load(chunk);
 
     FacadePhraseIndex phrase_index;
-    
-    //gb_char binary file
-    chunk = new MemoryChunk;
-    chunk->load("gb_char.bin");
-    phrase_index.load(1, chunk);
-    
-    //gbk_char binary file
-    chunk = new MemoryChunk;
-    chunk->load("gbk_char.bin");
-    phrase_index.load(2, chunk);
+    if (!load_phrase_index(&phrase_index))
+        exit(ENOENT);
     
     Bigram bigram;
     bigram.attach(bigram_filename, ATTACH_CREATE|ATTACH_READWRITE);
-    
     
     char* linebuf = NULL;
     size_t size = 0;
@@ -89,11 +79,11 @@ int main(int argc, char * argv[]){
         linebuf[strlen(linebuf)-1] = '\0';
 
         glong phrase_len = 0;
-        utf16_t * phrase = g_utf8_to_utf16(linebuf, -1, NULL, &phrase_len, NULL);
+        ucs4_t * phrase = g_utf8_to_ucs4(linebuf, -1, NULL, &phrase_len, NULL);
 
 	phrase_token_t token = 0;
         if ( 0 != phrase_len ) {
-            int result = g_phrases->search( phrase_len, phrase, token);
+            int result = phrases.search( phrase_len, phrase, token);
             if ( ! (result & SEARCH_OK) )
                 token = 0;
             g_free(phrase);
@@ -140,15 +130,8 @@ int main(int argc, char * argv[]){
 
     free(linebuf);
     
-    MemoryChunk * new_chunk = new MemoryChunk;
-    phrase_index.store(1, new_chunk);
-    new_chunk->save("gb_char.bin");
-    phrase_index.load(1, new_chunk);
-
-    new_chunk = new MemoryChunk;
-    phrase_index.store(2, new_chunk);
-    new_chunk->save("gbk_char.bin");
-    phrase_index.load(2, new_chunk);
+    if (!save_phrase_index(&phrase_index))
+        exit(ENOENT);
 
     return 0;
 }

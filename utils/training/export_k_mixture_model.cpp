@@ -21,6 +21,7 @@
 
 #include "pinyin_internal.h"
 #include "k_mixture_model.h"
+#include "utils_helper.h"
 
 void print_help(){
     printf("Usage: export_k_mixture_model [--k-mixture-model-file <FILENAME>]\n");
@@ -125,16 +126,8 @@ int main(int argc, char * argv[]){
     }
 
     FacadePhraseIndex phrase_index;
-
-    //gb_char binary file
-    MemoryChunk * chunk = new MemoryChunk;
-    chunk->load("gb_char.bin");
-    phrase_index.load(1, chunk);
-
-    //gbk_char binary file
-    chunk = new MemoryChunk;
-    chunk->load("gbk_char.bin");
-    phrase_index.load(2, chunk);
+    if (!load_phrase_index(&phrase_index))
+        exit(ENOENT);
 
     KMixtureModelBigram bigram(K_MIXTURE_MODEL_MAGIC_NUMBER);
     bigram.attach(k_mixture_model_filename, ATTACH_READONLY);

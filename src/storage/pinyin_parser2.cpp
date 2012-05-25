@@ -299,51 +299,6 @@ int FullPinyinParser2::parse (pinyin_option_t options, ChewingKeyVector & keys,
             next_sep = k;
         }
 
-#if 0
-        /* Heuristic Method:
-         *   do maximum forward match first. */
-        for (size_t pos = i; pos < next_sep; ++pos) {
-            curstep = &g_array_index(m_parse_steps, parse_value_t, pos);
-            size_t try_len = std_lite::min
-                (pos + max_full_pinyin_length, next_sep);
-            for (size_t n = try_len; n > pos; --n) {
-                nextstep = &g_array_index(m_parse_steps, parse_value_t, n);
-
-                /* gen next step */
-                const char * onepinyin = input + pos;
-                gint16 onepinyinlen = n - pos;
-                value = parse_value_t();
-
-                ChewingKey key; ChewingKeyRest rest;
-                bool parsed = parse_one_key
-                    (options, key, onepinyin, onepinyinlen);
-                rest.m_raw_begin = pos; rest.m_raw_end = n;
-
-                if (!parsed)
-                    continue;
-
-                //printf("onepinyin:%s len:%d\n", onepinyin, onepinyinlen);
-                value.m_key = key; value.m_key_rest = rest;
-                value.m_num_keys = curstep->m_num_keys + 1;
-                value.m_parsed_len = curstep->m_parsed_len + onepinyinlen;
-                value.m_last_step = pos;
-
-                /* save next step */
-                if (-1 == nextstep->m_last_step)
-                    *nextstep = value;
-                if (value.m_parsed_len > nextstep->m_parsed_len)
-                    *nextstep = value;
-                if (value.m_parsed_len == nextstep->m_parsed_len &&
-                    value.m_num_keys < nextstep->m_num_keys)
-                    *nextstep = value;
-
-                /* maximum forward, set pos to n in next iteration. */
-                pos = n - 1;
-                break;
-            }
-        }
-#endif
-
         /* dynamic programming here. */
         /* for (size_t m = i; m < next_sep; ++m) */
         {
@@ -433,7 +388,7 @@ int FullPinyinParser2::parse (pinyin_option_t options, ChewingKeyVector & keys,
 
     /* post processing for re-split table. */
     if (options & USE_RESPLIT_TABLE) {
-        post_process(options, keys, key_rests);
+        post_process2(options, keys, key_rests, str, len);
     }
 
     g_free(input);
@@ -477,13 +432,14 @@ int FullPinyinParser2::final_step(size_t step_len, ChewingKeyVector & keys,
     return parsed_len;
 }
 
-
-bool FullPinyinParser2::post_process(pinyin_option_t options,
-                                     ChewingKeyVector & keys,
-                                     ChewingKeyRestVector & key_rests) const {
+bool FullPinyinParser2::post_process2(pinyin_option_t options,
+                                      ChewingKeyVector & keys,
+                                      ChewingKeyRestVector & key_rests,
+                                      const char * str,
+                                      int len) const {
     int i;
     assert(keys->len == key_rests->len);
-    gint16 num_keys = keys->len;
+    gint num_keys = keys->len;
 
     ChewingKey * cur_key = NULL, * next_key = NULL;
     ChewingKeyRest * cur_rest = NULL, * next_rest = NULL;
@@ -504,45 +460,161 @@ bool FullPinyinParser2::post_process(pinyin_option_t options,
         if (CHEWING_ZERO_TONE != cur_key->m_tone)
             continue;
 
+        /* back up tone */
         if (options & USE_TONE) {
             next_tone = next_key->m_tone;
-            next_key->m_tone = CHEWING_ZERO_TONE;
+            if (CHEWING_ZERO_TONE != next_tone) {
+                next_key->m_tone = CHEWING_ZERO_TONE;
+                next_rest->m_raw_end --;
+            }
         }
 
         /* lookup re-split table */
-        size_t k;
         const resplit_table_item_t * item = NULL;
-        for (k = 0; k < G_N_ELEMENTS(resplit_table); ++k) {
-            item = resplit_table + k;
+
+        item = retrieve_resplit_item_by_original_pinyins
+            (options, cur_key, cur_rest, next_key, next_rest, str, len);
+
+        if (item) {
             /* no ops */
             if (item->m_orig_freq >= item->m_new_freq)
                 continue;
 
-            /* use pinyin_exact_compare2 here. */
-            if (0 == pinyin_exact_compare2(item->m_orig_keys,
-                                           cur_key, 2))
-                break;
-
-        }
-
-        /* find the match */
-        if (k < G_N_ELEMENTS(resplit_table)) {
             /* do re-split */
-            item = resplit_table + k;
-            *cur_key = item->m_new_keys[0];
-            *next_key = item->m_new_keys[1];
-            /* assumes only moved one char in gen_all_resplit script. */
-            cur_rest->m_raw_end ++;
-            next_rest->m_raw_begin ++;
+            const char * onepinyin = str + cur_rest->m_raw_begin;
+            size_t len = strlen(item->m_new_keys[0]);
+
+            assert(parse_one_key(options, *cur_key, onepinyin, len));
+            cur_rest->m_raw_end = cur_rest->m_raw_begin + len;
+
+            next_rest->m_raw_begin = cur_rest->m_raw_end;
+            onepinyin = str + next_rest->m_raw_begin;
+            len = strlen(item->m_new_keys[1]);
+
+            assert(parse_one_key(options, *next_key, onepinyin, len));
         }
 
-        /* save back tones */
+        /* restore tones */
         if (options & USE_TONE) {
-            next_key->m_tone = next_tone;
+            if (CHEWING_ZERO_TONE != next_tone) {
+                next_key->m_tone = next_tone;
+                next_rest->m_raw_end ++;
+            }
         }
     }
 
     return true;
+}
+
+const divided_table_item_t * FullPinyinParser2::retrieve_divided_item
+(pinyin_option_t options, ChewingKey * key, ChewingKeyRest * rest,
+ const char * str, int len) const {
+
+    /* lookup divided table */
+    size_t k;
+    const divided_table_item_t * item = NULL;
+    for (k = 0; k < G_N_ELEMENTS(divided_table); ++k) {
+        item = divided_table + k;
+
+        const char * onepinyin = str + rest->m_raw_begin;
+        size_t len = strlen(item->m_orig_key);
+
+        if (rest->length() != len)
+            continue;
+
+        if (0 == strncmp(onepinyin, item->m_orig_key, len))
+            break;
+    }
+
+    /* found the match */
+    if (k < G_N_ELEMENTS(divided_table)) {
+        /* do divided */
+        item = divided_table + k;
+        return item;
+    }
+
+    return NULL;
+}
+
+
+const resplit_table_item_t * FullPinyinParser2::retrieve_resplit_item_by_original_pinyins
+(pinyin_option_t options,
+ ChewingKey * cur_key, ChewingKeyRest * cur_rest,
+ ChewingKey * next_key, ChewingKeyRest * next_rest,
+ const char * str, int len) const{
+    /* lookup re-split table */
+    size_t k;
+    const resplit_table_item_t * item = NULL;
+
+    for (k = 0; k < G_N_ELEMENTS(resplit_table); ++k) {
+        item = resplit_table + k;
+
+        const char * onepinyin = str + cur_rest->m_raw_begin;
+        size_t len = strlen(item->m_orig_keys[0]);
+
+        if (cur_rest->length() != len)
+            continue;
+
+        if (0 != strncmp(onepinyin, item->m_orig_keys[0], len))
+            continue;
+
+        onepinyin = str + next_rest->m_raw_begin;
+        len = strlen(item->m_orig_keys[1]);
+
+        if (next_rest->length() != len)
+            continue;
+
+        if (0 == strncmp(onepinyin, item->m_orig_keys[1], len))
+            break;
+    }
+
+    /* found the match */
+    if (k < G_N_ELEMENTS(resplit_table)) {
+        item = resplit_table + k;
+        return item;
+    }
+
+    return NULL;
+}
+
+const resplit_table_item_t * FullPinyinParser2::retrieve_resplit_item_by_resplit_pinyins
+(pinyin_option_t options,
+ ChewingKey * cur_key, ChewingKeyRest * cur_rest,
+ ChewingKey * next_key, ChewingKeyRest * next_rest,
+ const char * str, int len) const {
+    /* lookup divide table */
+    size_t k;
+    const resplit_table_item_t * item = NULL;
+
+    for (k = 0; k < G_N_ELEMENTS(resplit_table); ++k) {
+        item = resplit_table + k;
+
+        const char * onepinyin = str + cur_rest->m_raw_begin;
+        size_t len = strlen(item->m_new_keys[0]);
+
+        if (cur_rest->length() != len)
+            continue;
+
+        if (0 != strncmp(onepinyin, item->m_new_keys[0], len))
+            continue;
+
+        onepinyin = str + next_rest->m_raw_begin;
+        len = strlen(item->m_new_keys[1]);
+
+        if (next_rest->length() != len)
+            continue;
+
+        if (0 == strncmp(onepinyin, item->m_new_keys[1], len))
+            break;
+    }
+
+    /* found the match */
+    if (k < G_N_ELEMENTS(resplit_table)) {
+        item = resplit_table + k;
+        return item;
+    }
+
+    return NULL;
 }
 
 #define IS_KEY(x)   (('a' <= x && x <= 'z') || x == ';')

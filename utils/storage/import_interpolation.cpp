@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <glib.h>
 #include "pinyin_internal.h"
+#include "utils_helper.h"
 
 enum LINE_TYPE{
     BEGIN_LINE = 1,
@@ -207,24 +208,8 @@ int main(int argc, char * argv[]){
     phrases.load(chunk);
 
     FacadePhraseIndex phrase_index;
-
-    //gb_char binary file
-    chunk = new MemoryChunk;
-    retval = chunk->load("gb_char.bin");
-    if (!retval) {
-        fprintf(stderr, "open gb_char.bin failed!\n");
+    if (!load_phrase_index(&phrase_index))
         exit(ENOENT);
-    }
-    phrase_index.load(1, chunk);
-
-    //gbk_char binary file
-    chunk = new MemoryChunk;
-    retval = chunk->load("gbk_char.bin");
-    if (!retval) {
-        fprintf(stderr, "open gbk_char.bin failed!\n");
-        exit(ENOENT);
-    }
-    phrase_index.load(2, chunk);
 
     Bigram bigram;
     retval = bigram.attach(bigram_filename, ATTACH_CREATE|ATTACH_READWRITE);
@@ -266,15 +251,8 @@ int main(int argc, char * argv[]){
 
     taglib_fini();
 
-    chunk = new MemoryChunk;
-    phrase_index.store(1, chunk);
-    chunk->save("gb_char.bin");
-    phrase_index.load(1, chunk);
-
-    chunk = new MemoryChunk;
-    phrase_index.store(2, chunk);
-    chunk->save("gbk_char.bin");
-    phrase_index.load(2, chunk);
+    if (!save_phrase_index(&phrase_index))
+        exit(ENOENT);
 
     return 0;
 }

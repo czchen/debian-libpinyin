@@ -48,16 +48,16 @@ typedef struct {
 } chewing_index_item_t;
 
 typedef struct {
-    ChewingKey   m_orig_key;
+    const char * m_orig_key;
     guint32      m_orig_freq;
-    ChewingKey   m_new_keys[2];
+    const char * m_new_keys[2];
     guint32      m_new_freq;
 } divided_table_item_t;
 
 typedef struct {
-    ChewingKey   m_orig_keys[2];
+    const char * m_orig_keys[2];
     guint32      m_orig_freq;
-    ChewingKey   m_new_keys[2];
+    const char * m_new_keys[2];
     guint32      m_new_freq;
 } resplit_table_item_t;
 
@@ -85,37 +85,46 @@ typedef GArray * ParseValueVector;
 
 
 /**
- * @brief Class to translate string into ChewingKey.
+ * PinyinParser2:
+ *
+ * Parse the ascii string into an array of the struct ChewingKeys.
+ *
  */
 class PinyinParser2
 {
-    /* constructor/destructor */
-public:
-    virtual ~PinyinParser2() {}
-
-    /* public method */
 public:
     /**
-     * @brief Translate only one ChewingKey from a string.
+     * PinyinParser2::~PinyinParser2:
      *
-     * @param options pinyin options from pinyin_custom2.h.
-     * @param key stores result ChewingKey.
-     * @param str snput string in UTF-8 encoding, in most case this string is just a plain ASCII string.
-     * @param len the length of str, in number of chars rather than bytes.
+     * The destructor of the PinyinParser2.
      *
-     * @return whether the entire string is parsed as one key.
+     */
+    virtual ~PinyinParser2() {}
+
+public:
+    /**
+     * PinyinParser2::parse_one_key:
+     * @options: the pinyin options from pinyin_custom2.h.
+     * @key: the parsed result of struct ChewingKey.
+     * @str: the input of the ascii string.
+     * @len: the length of the str.
+     * @returns: whether the entire string is parsed as one key.
+     *
+     * Parse only one struct ChewingKey from a string.
+     *
      */
     virtual bool parse_one_key(pinyin_option_t options, ChewingKey & key, const char *str, int len) const = 0;
 
     /**
-     * @brief Translate the source string into a set of ChewingKeys.
+     * PinyinParser2::parse:
+     * @options: the pinyin options from pinyin_custom2.h.
+     * @keys: the parsed result of struct ChewingKeys.
+     * @str: the input of the ascii string.
+     * @len: the length of the str.
+     * @returns: the number of chars were actually used.
      *
-     * @param options pinyin options from pinyin_custom2.h.
-     * @param keys stores result ChewingKeys.
-     * @param str input string in UTF-8 encoding, in most case this string is just a plain ASCII string.
-     * @param len the length of str, in number of chars rather than bytes.
+     * Parse the ascii string into an array of struct ChewingKeys.
      *
-     * @return the number of chars were actually used.
      */
     virtual int parse(pinyin_option_t options, ChewingKeyVector & keys, ChewingKeyRestVector & key_rests, const char *str, int len) const = 0;
 
@@ -123,7 +132,10 @@ public:
 
 
 /**
- * The Full Pinyin Parser which parses full pinyin string into ChewingKeys.
+ * FullPinyinParser2:
+ *
+ * Parses the full pinyin string into an array of struct ChewingKeys.
+ *
  */
 class FullPinyinParser2 : public PinyinParser2
 {
@@ -135,8 +147,25 @@ protected:
     int final_step(size_t step_len, ChewingKeyVector & keys,
                    ChewingKeyRestVector & key_rests) const;
 
-    bool post_process(pinyin_option_t options, ChewingKeyVector & keys,
-                      ChewingKeyRestVector & key_rests) const;
+    bool post_process2(pinyin_option_t options, ChewingKeyVector & keys,
+                       ChewingKeyRestVector & key_rests,
+                       const char * str, int len) const;
+
+public:
+    const divided_table_item_t * retrieve_divided_item
+    (pinyin_option_t options, ChewingKey * key, ChewingKeyRest * rest,
+     const char * str, int len) const;
+
+    const resplit_table_item_t * retrieve_resplit_item_by_original_pinyins
+    (pinyin_option_t options,
+     ChewingKey * cur_key, ChewingKeyRest * cur_rest,
+     ChewingKey * next_key, ChewingKeyRest * next_rest,
+     const char * str, int len) const;
+    const resplit_table_item_t * retrieve_resplit_item_by_resplit_pinyins
+    (pinyin_option_t options,
+     ChewingKey * cur_key, ChewingKeyRest * cur_rest,
+     ChewingKey * next_key, ChewingKeyRest * next_rest,
+     const char * str, int len) const;
 
 public:
     FullPinyinParser2();
@@ -153,6 +182,12 @@ public:
 };
 
 
+/**
+ * DoublePinyinParser2:
+ *
+ * Parse the double pinyin string into an array of struct ChewingKeys.
+ *
+ */
 /* The valid input chars of ShuangPin is a-z and ';'
  */
 class DoublePinyinParser2 : public PinyinParser2
@@ -180,13 +215,16 @@ public:
 
 
 /**
- * @brief Class to parse Chewing input string
+ * ChewingParser2:
+ *
+ * Parse the chewing string into an array of struct ChewingKeys.
  *
  * Several keyboard scheme are supported:
  * * Chewing_STANDARD  Standard ZhuYin keyboard, which maps 1 to Bo(ㄅ), q to Po(ㄆ) etc.
  * * Chewing_IBM       IBM ZhuYin keyboard, which maps 1 to Bo(ㄅ), 2 to Po(ㄆ) etc.
  * * Chewing_GINYIEH   Gin-Yieh ZhuYin keyboard.
  * * Chewing_ETEN      Eten (倚天) ZhuYin keyboard.
+ *
  */
 
 /* Note: maybe yunmus shuffle will be supported later.

@@ -21,61 +21,37 @@
 
 #include <stdio.h>
 #include "pinyin_internal.h"
-
+#include "utils_helper.h"
 
 /* increase all unigram frequency by a constant. */
 
 int main(int argc, char * argv[]){
+    MemoryChunk * chunk = NULL;
 
     FacadePhraseIndex phrase_index;
-    
-    /* gb_char binary file */
-    MemoryChunk * chunk = new MemoryChunk;
-    bool retval = chunk->load("gb_char.bin");
-    if (!retval) {
-        fprintf(stderr, "open gb_char.bin failed!\n");
+    if (!load_phrase_index(&phrase_index))
         exit(ENOENT);
-    }
-    phrase_index.load(1, chunk);
-    
-    /* gbk_char binary file */
-    chunk = new MemoryChunk;
-    retval = chunk->load("gbk_char.bin");
-    if (!retval) {
-        fprintf(stderr, "open gbk_char.bin failed!\n");
-        exit(ENOENT);
-    }
-    phrase_index.load(2, chunk);
 
     /* Note: please increase the value when corpus size becomes larger.
      *  To avoid zero value when computing unigram frequency in float format.
      */
-    guint32 freq = 1; PhraseIndexRange range;
-    int result = phrase_index.get_range(1, range);
-    if ( result == ERROR_OK ) {
-        for ( size_t i = range.m_range_begin; i <= range.m_range_end; ++i ) {
-            phrase_index.add_unigram_frequency(i, freq);
+    for (size_t i = 0; i < PHRASE_INDEX_LIBRARY_COUNT; ++i) {
+        const char * binfile = pinyin_phrase_files[i];
+        if (NULL == binfile)
+            continue;
+
+        guint32 freq = 1; PhraseIndexRange range;
+        int result = phrase_index.get_range(i, range);
+        if ( result == ERROR_OK ) {
+            for (size_t token = range.m_range_begin;
+                  token <= range.m_range_end; ++token) {
+                phrase_index.add_unigram_frequency(token, freq);
+            }
         }
     }
 
-#if 1
-    result = phrase_index.get_range(2, range);
-    if ( result == ERROR_OK ) {
-        for ( size_t i = range.m_range_begin; i <= range.m_range_end; ++i ) {
-            phrase_index.add_unigram_frequency(i, freq);
-        }
-    }
-#endif
-
-    MemoryChunk * new_chunk = new MemoryChunk;
-    phrase_index.store(1, new_chunk);
-    new_chunk->save("gb_char.bin");
-    phrase_index.load(1, new_chunk);
-
-    new_chunk = new MemoryChunk;
-    phrase_index.store(2, new_chunk);
-    new_chunk->save("gbk_char.bin");
-    phrase_index.load(2, new_chunk);
+    if (!save_phrase_index(&phrase_index))
+        exit(ENOENT);
 
     return 0;
 }

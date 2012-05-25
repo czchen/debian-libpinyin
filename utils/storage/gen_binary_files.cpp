@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <locale.h>
 #include "pinyin_internal.h"
+#include "utils_helper.h"
 
 void print_help(){
     printf("Usage: gen_binary_files --table-dir <DIRNAME>\n");
@@ -53,38 +54,27 @@ int main(int argc, char * argv[]){
 
     /* generate phrase index */
     FacadePhraseIndex phrase_index;
+    for (size_t i = 0; i < PHRASE_INDEX_LIBRARY_COUNT; ++i) {
+        const char * tablename = pinyin_table_files[i];
+        if (NULL == tablename)
+            continue;
 
-    gchar * filename = g_build_filename(table_dir, "gb_char.table", NULL);
-    FILE * gbfile = fopen(filename, "r");
-    g_free(filename);
+        gchar * filename = g_build_filename(table_dir, tablename, NULL);
+        FILE * tablefile = fopen(filename, "r");
 
-    if ( gbfile == NULL) {
-	fprintf(stderr, "open gb_char.table failed!\n");
-	exit(ENOENT);
+        if (NULL == tablefile) {
+            fprintf(stderr, "open %s failed!\n", tablename);
+            exit(ENOENT);
+        }
+
+        chewinglargetable.load_text(tablefile);
+        fseek(tablefile, 0L, SEEK_SET);
+        phraselargetable.load_text(tablefile);
+        fseek(tablefile, 0L, SEEK_SET);
+        phrase_index.load_text(i, tablefile);
+        fclose(tablefile);
+        g_free(filename);
     }
-
-    chewinglargetable.load_text(gbfile);
-    fseek(gbfile, 0L, SEEK_SET);
-    phraselargetable.load_text(gbfile);
-    fseek(gbfile, 0L, SEEK_SET);
-    phrase_index.load_text(1, gbfile);
-    fclose(gbfile);
-
-    filename = g_build_filename(table_dir, "gbk_char.table", NULL);
-    FILE * gbkfile = fopen(filename, "r");
-    g_free(filename);
-
-    if ( gbkfile == NULL) {
-        fprintf(stderr, "open gbk_char.table failed!\n");
-        exit(ENOENT);
-    }
-    
-    chewinglargetable.load_text(gbkfile);
-    fseek(gbkfile, 0L, SEEK_SET);
-    phraselargetable.load_text(gbkfile);
-    fseek(gbkfile, 0L, SEEK_SET);
-    phrase_index.load_text(2, gbkfile);
-    fclose(gbkfile);
 
     MemoryChunk * new_chunk = new MemoryChunk;
     chewinglargetable.store(new_chunk);
@@ -96,17 +86,10 @@ int main(int argc, char * argv[]){
     new_chunk->save("phrase_index.bin");
     phraselargetable.load(new_chunk);
 
-    phrase_index.compat();
+    phrase_index.compact();
 
-    new_chunk = new MemoryChunk;
-    phrase_index.store(1, new_chunk);
-    new_chunk->save("gb_char.bin");
-    phrase_index.load(1, new_chunk);
+    if (!save_phrase_index(&phrase_index))
+        exit(ENOENT);
 
-    new_chunk = new MemoryChunk;
-    phrase_index.store(2, new_chunk);
-    new_chunk->save("gbk_char.bin");
-    phrase_index.load(2, new_chunk);
-    
     return 0;
 }

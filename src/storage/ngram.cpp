@@ -410,9 +410,6 @@ bool Bigram::get_all_items(GArray * items){
 namespace pinyin{
 
 /* merge origin system info and delta user info */
-/*  Note: Please keep system and user single gram
- *          when using merged single gram.
- */
 bool merge_single_gram(SingleGram * merged, const SingleGram * system,
                        const SingleGram * user){
     if (NULL == system && NULL == user)
@@ -443,12 +440,12 @@ bool merge_single_gram(SingleGram * merged, const SingleGram * system,
     merged_chunk.set_content(0, &merged_total, sizeof(guint32));
 
     const SingleGramItem * cur_system = (const SingleGramItem *)
-        ((const char *)(system->m_chunk.begin()) + sizeof(guint32));
+        (((const char *)(system->m_chunk.begin())) + sizeof(guint32));
     const SingleGramItem * system_end = (const SingleGramItem *)
         system->m_chunk.end();
 
     const SingleGramItem * cur_user = (const SingleGramItem *)
-        ((const char *)(user->m_chunk.begin()) + sizeof(guint32));
+        (((const char *)(user->m_chunk.begin())) + sizeof(guint32));
     const SingleGramItem * user_end = (const SingleGramItem *)
         user->m_chunk.end();
 

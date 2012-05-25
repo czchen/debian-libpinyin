@@ -23,16 +23,17 @@
 #include <stdio.h>
 #include <locale.h>
 #include "pinyin_internal.h"
+#include "tests_helper.h"
 
 void print_help(){
     printf("Usage: test_phrase_lookup\n");
 }
 
 bool try_phrase_lookup(PhraseLookup * phrase_lookup,
-                       utf16_t * utf16, glong utf16_len){
+                       ucs4_t * ucs4_str, glong ucs4_len){
     char * result_string = NULL;
     MatchResults results = g_array_new(FALSE, FALSE, sizeof(phrase_token_t));
-    phrase_lookup->get_best_match(utf16_len, utf16, results);
+    phrase_lookup->get_best_match(ucs4_len, ucs4_str, results);
 #if 0
     for ( size_t i = 0; i < results->len; ++i) {
         phrase_token_t * token = &g_array_index(results, phrase_token_t, i);
@@ -56,7 +57,7 @@ int main(int argc, char * argv[]){
     int i = 1;
 
     setlocale(LC_ALL, "");
-    //deal with options.
+    /* deal with options. */
     while ( i < argc ){
         if ( strcmp ("--help", argv[i]) == 0 ){
             print_help();
@@ -69,31 +70,27 @@ int main(int argc, char * argv[]){
     }
 
 
-    //init phrase table
+    /* init phrase table */
     FacadePhraseTable phrase_table;
     MemoryChunk * chunk = new MemoryChunk;
     chunk->load("../../data/phrase_index.bin");
     phrase_table.load(chunk, NULL);
 
-    //init phrase index
+    /* init phrase index */
     FacadePhraseIndex phrase_index;
-    chunk = new MemoryChunk;
-    chunk->load("../../data/gb_char.bin");
-    phrase_index.load(1, chunk);
-    chunk = new MemoryChunk;
-    chunk->load("../../data/gbk_char.bin");
-    phrase_index.load(2, chunk);
+    if (!load_phrase_index(&phrase_index))
+        exit(ENOENT);
 
-    //init bi-gram
+    /* init bi-gram */
     Bigram system_bigram;
     system_bigram.attach("../../data/bigram.db", ATTACH_READONLY);
     Bigram user_bigram;
 
-    //init phrase lookup
+    /* init phrase lookup */
     PhraseLookup phrase_lookup(&phrase_table, &phrase_index,
                                &system_bigram, &user_bigram);
 
-    //try one sentence
+    /* try one sentence */
     char * linebuf = NULL;
     size_t size = 0;
     ssize_t read;
@@ -105,12 +102,12 @@ int main(int argc, char * argv[]){
         if ( strcmp ( linebuf, "quit" ) == 0)
             break;
 
-        //check non-ucs2 characters
+        /* check non-ucs4 characters */
         const glong num_of_chars = g_utf8_strlen(linebuf, -1);
         glong len = 0;
-        utf16_t * sentence = g_utf8_to_utf16(linebuf, -1, NULL, &len, NULL);
+        ucs4_t * sentence = g_utf8_to_ucs4(linebuf, -1, NULL, &len, NULL);
         if ( len != num_of_chars ) {
-            fprintf(stderr, "non-ucs2 characters are not accepted.\n");
+            fprintf(stderr, "non-ucs4 characters are not accepted.\n");
             g_free(sentence);
             continue;
         }
