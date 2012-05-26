@@ -25,12 +25,9 @@
 static bool load_phrase_index(FacadePhraseIndex * phrase_index){
     MemoryChunk * chunk = NULL;
     for (size_t i = 0; i < PHRASE_INDEX_LIBRARY_COUNT; ++i) {
-        const pinyin_table_info_t * table_info = pinyin_phrase_files + i;
-
-        if (SYSTEM_FILE != table_info->m_file_type)
+        const char * binfile = pinyin_phrase_files[i];
+        if (NULL == binfile)
             continue;
-
-        const char * binfile = table_info->m_system_filename;
 
         gchar * filename = g_build_filename("..", "..", "data",
                                             binfile, NULL);
@@ -43,39 +40,6 @@ static bool load_phrase_index(FacadePhraseIndex * phrase_index){
 
         phrase_index->load(i, chunk);
         g_free(filename);
-    }
-    return true;
-}
-
-static bool load_phrase_table(ChewingLargeTable * chewing_table,
-                              PhraseLargeTable * phrase_table,
-                              FacadePhraseIndex * phrase_index){
-    for (size_t i = 0; i < PHRASE_INDEX_LIBRARY_COUNT; ++i) {
-        const pinyin_table_info_t * table_info = pinyin_phrase_files + i;
-
-        if (SYSTEM_FILE != table_info->m_file_type)
-            continue;
-
-        const char * tablename = table_info->m_table_filename;
-
-        gchar * filename = g_build_filename("..", "..", "data",
-                                            tablename, NULL);
-        FILE * tablefile = fopen(filename, "r");
-        if (NULL == tablefile) {
-            fprintf(stderr, "open %s failed!\n", tablename);
-            return false;
-        }
-        g_free(filename);
-
-        if (chewing_table)
-            chewing_table->load_text(tablefile);
-        fseek(tablefile, 0L, SEEK_SET);
-        if (phrase_table)
-            phrase_table->load_text(tablefile);
-        fseek(tablefile, 0L, SEEK_SET);
-        if (phrase_index)
-            phrase_index->load_text(i, tablefile);
-        fclose(tablefile);
     }
     return true;
 }

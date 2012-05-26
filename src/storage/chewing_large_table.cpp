@@ -484,14 +484,13 @@ int ChewingBitmapIndexLevel::remove_index(int phrase_length,
 
     if (length_array)
         return length_array->remove_index(phrase_length - 1, keys + 1, token);
-    return ERROR_REMOVE_ITEM_DONOT_EXISTS;
+    return REMOVE_ITEM_DONOT_EXISTS;
 }
 
 int ChewingLengthIndexLevel::add_index(int phrase_length,
                                        /* in */ ChewingKey keys[],
                                        /* in */ phrase_token_t token) {
-    if (!(phrase_length + 1 < MAX_PHRASE_LENGTH))
-        return ERROR_PHRASE_TOO_LONG;
+    assert(phrase_length + 1 < MAX_PHRASE_LENGTH);
 
     if (m_chewing_array_indexes->len <= phrase_length)
         g_array_set_size(m_chewing_array_indexes, phrase_length + 1);
@@ -533,11 +532,10 @@ int ChewingLengthIndexLevel::add_index(int phrase_length,
 int ChewingLengthIndexLevel::remove_index(int phrase_length,
                                           /* in */ ChewingKey keys[],
                                           /* in */ phrase_token_t token) {
-    if (!(phrase_length + 1 < MAX_PHRASE_LENGTH))
-        return ERROR_PHRASE_TOO_LONG;
+    assert(phrase_length + 1 < MAX_PHRASE_LENGTH);
 
     if (m_chewing_array_indexes->len <= phrase_length)
-        return ERROR_REMOVE_ITEM_DONOT_EXISTS;
+        return REMOVE_ITEM_DONOT_EXISTS;
 
 #define CASE(len) case len:                                     \
     {                                                           \
@@ -545,7 +543,7 @@ int ChewingLengthIndexLevel::remove_index(int phrase_length,
             (m_chewing_array_indexes,                           \
              ChewingArrayIndexLevel<len> *, len);               \
         if (NULL == array)                                      \
-            return ERROR_REMOVE_ITEM_DONOT_EXISTS;                    \
+            return REMOVE_ITEM_DONOT_EXISTS;                    \
         return array->remove_index(keys, token);                \
     }
 
@@ -590,14 +588,14 @@ int ChewingArrayIndexLevel<phrase_length>::add_index
     for (cur_elem = range.first;
          cur_elem != range.second; ++cur_elem) {
         if (cur_elem->m_token == token)
-            return ERROR_INSERT_ITEM_EXISTS;
+            return INSERT_ITEM_EXISTS;
         if (cur_elem->m_token > token)
             break;
     }
 
     int offset = (cur_elem - begin) * sizeof(IndexItem);
     m_chunk.insert_content(offset, &add_elem, sizeof(IndexItem));
-    return ERROR_OK;
+    return INSERT_OK;
 }
 
 template<int phrase_length>
@@ -621,11 +619,11 @@ int ChewingArrayIndexLevel<phrase_length>::remove_index
     }
 
     if (cur_elem == range.second)
-        return ERROR_REMOVE_ITEM_DONOT_EXISTS;
+        return REMOVE_ITEM_DONOT_EXISTS;
 
     int offset = (cur_elem - begin) * sizeof(IndexItem);
     m_chunk.remove_content(offset, sizeof(IndexItem));
-    return ERROR_OK;
+    return REMOVE_OK;
 }
 
 
