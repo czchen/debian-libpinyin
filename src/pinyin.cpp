@@ -49,6 +49,10 @@ struct _pinyin_context_t{
     bool m_modified;
 };
 
+struct _import_iterator_t{
+    pinyin_context_t * m_context;
+    guint8 m_phrase_index;
+};
 
 static bool check_format(const char * userdir){
     gchar * filename = g_build_filename
@@ -68,19 +72,26 @@ static bool check_format(const char * userdir){
         return exists;
 
     /* clean up files, if version mis-matches. */
-    filename = g_build_filename
-        (userdir, "gb_char.dbin", NULL);
-    g_unlink(filename);
-    g_free(filename);
+    for (size_t i = 1; i < PHRASE_INDEX_LIBRARY_COUNT; ++i) {
+        const pinyin_table_info_t * table_info = pinyin_phrase_files + i;
 
-    filename = g_build_filename
-        (userdir, "gbk_char.dbin", NULL);
-    g_unlink(filename);
-    g_free(filename);
+        if (NOT_USED == table_info->m_file_type)
+            continue;
+
+        if (NULL == table_info->m_user_filename)
+            continue;
+
+        const char * userfilename = table_info->m_user_filename;
+
+        /* remove dbin file. */
+        filename = g_build_filename(userdir, userfilename, NULL);
+        unlink(filename);
+        g_free(filename);
+    }
 
     filename = g_build_filename
         (userdir, "user.db", NULL);
-    g_unlink(filename);
+    unlink(filename);
     g_free(filename);
 
     return exists;
@@ -108,7 +119,14 @@ pinyin_context_t * pinyin_init(const char * systemdir, const char * userdir){
 
     check_format(context->m_user_dir);
 
+    context->m_full_pinyin_parser = new FullPinyinParser2;
+    context->m_double_pinyin_parser = new DoublePinyinParser2;
+    context->m_chewing_parser = new ChewingParser2;
+
+    /* load chewing table. */
     context->m_pinyin_table = new FacadeChewingTable;
+
+    /* load system chewing table. */
     MemoryChunk * chunk = new MemoryChunk;
     gchar * filename = g_build_filename
         (context->m_system_dir, "pinyin_index.bin", NULL);
@@ -118,48 +136,49 @@ pinyin_context_t * pinyin_init(const char * systemdir, const char * userdir){
     }
     g_free(filename);
 
-    context->m_pinyin_table->load(context->m_options, chunk, NULL);
+    /* load user chewing table */
+    MemoryChunk * userchunk = new MemoryChunk;
+    filename = g_build_filename
+        (context->m_user_dir, "user_pinyin_index.bin", NULL);
+    if (!userchunk->load(filename)) {
+        /* hack here: use local Chewing Table to create empty memory chunk. */
+        ChewingLargeTable table(context->m_options);
+        table.store(userchunk);
+    }
+    g_free(filename);
 
-    context->m_full_pinyin_parser = new FullPinyinParser2;
-    context->m_double_pinyin_parser = new DoublePinyinParser2;
-    context->m_chewing_parser = new ChewingParser2;
+    context->m_pinyin_table->load(context->m_options, chunk, userchunk);
 
+    /* load phrase table */
     context->m_phrase_table = new FacadePhraseTable;
+
+    /* load system phrase table */
     chunk = new MemoryChunk;
-    filename = g_build_filename(context->m_system_dir, "phrase_index.bin", NULL);
+    filename = g_build_filename
+        (context->m_system_dir, "phrase_index.bin", NULL);
     if (!chunk->load(filename)) {
         fprintf(stderr, "open %s failed!\n", filename);
         return NULL;
     }
     g_free(filename);
-    context->m_phrase_table->load(chunk, NULL);
+
+    /* load user phrase table */
+    userchunk = new MemoryChunk;
+    filename = g_build_filename
+        (context->m_user_dir, "user_phrase_index.bin", NULL);
+    if (!userchunk->load(filename)) {
+        /* hack here: use local Phrase Table to create empty memory chunk. */
+        PhraseLargeTable table;
+        table.store(userchunk);
+    }
+    g_free(filename);
+
+    context->m_phrase_table->load(chunk, userchunk);
 
     context->m_phrase_index = new FacadePhraseIndex;
-    MemoryChunk * log = new MemoryChunk; chunk = new MemoryChunk;
-    filename = g_build_filename(context->m_system_dir, "gb_char.bin", NULL);
-    if (!chunk->load(filename)) {
-        fprintf(stderr, "open %s failed!\n", filename);
-        return NULL;
-    }
-    g_free(filename);
-    context->m_phrase_index->load(1, chunk);
-    filename = g_build_filename(context->m_user_dir, "gb_char.dbin", NULL);
-    log->load(filename);
-    g_free(filename);
-    context->m_phrase_index->merge(1, log);
 
-    log = new MemoryChunk; chunk = new MemoryChunk;
-    filename = g_build_filename(context->m_system_dir, "gbk_char.bin", NULL);
-    if (!chunk->load(filename)) {
-        fprintf(stderr, "open %s failed!\n", filename);
-        return NULL;
-    }
-    g_free(filename);
-    context->m_phrase_index->load(2, chunk);
-    filename = g_build_filename(context->m_user_dir, "gbk_char.dbin", NULL);
-    log->load(filename);
-    g_free(filename);
-    context->m_phrase_index->merge(2, log);
+    /* hack here: directly call load phrase library. */
+    pinyin_load_phrase_library(context, 1);
 
     context->m_system_bigram = new Bigram;
     filename = g_build_filename(context->m_system_dir, "bigram.db", NULL);
@@ -183,6 +202,174 @@ pinyin_context_t * pinyin_init(const char * systemdir, const char * userdir){
     return context;
 }
 
+bool pinyin_load_phrase_library(pinyin_context_t * context,
+                                guint8 index){
+    assert(index < PHRASE_INDEX_LIBRARY_COUNT);
+    const pinyin_table_info_t * table_info = pinyin_phrase_files + index;
+
+    if (SYSTEM_FILE == table_info->m_file_type) {
+        /* system phrase library */
+        MemoryChunk * chunk = new MemoryChunk;
+
+        const char * systemfilename = table_info->m_system_filename;
+        /* check bin file in system dir. */
+        gchar * chunkfilename = g_build_filename(context->m_system_dir,
+                                                 systemfilename, NULL);
+        chunk->load(chunkfilename);
+        g_free(chunkfilename);
+
+        context->m_phrase_index->load(index, chunk);
+
+        const char * userfilename = table_info->m_user_filename;
+
+        chunkfilename = g_build_filename(context->m_user_dir,
+                                         userfilename, NULL);
+
+        MemoryChunk * log = new MemoryChunk;
+        log->load(chunkfilename);
+        g_free(chunkfilename);
+
+        /* merge the chunk log. */
+        context->m_phrase_index->merge(index, log);
+        return true;
+    }
+
+    if (USER_FILE == table_info->m_file_type) {
+        /* user phrase library */
+        MemoryChunk * chunk = new MemoryChunk;
+        const char * userfilename = table_info->m_user_filename;
+
+        gchar * chunkfilename = g_build_filename(context->m_user_dir,
+                                                 userfilename, NULL);
+
+	/* check bin file exists. if not, create a new one. */
+        if (chunk->load(chunkfilename)) {
+            context->m_phrase_index->load(index, chunk);
+        } else {
+            delete chunk;
+            context->m_phrase_index->create_sub_phrase(index);
+        }
+
+        g_free(chunkfilename);
+        return true;
+    }
+
+    return false;
+}
+
+bool pinyin_unload_phrase_library(pinyin_context_t * context,
+                                  guint8 index){
+    /* gb_char.bin can't be unloaded. */
+    if (1 == index)
+        return false;
+
+    assert(index < PHRASE_INDEX_LIBRARY_COUNT);
+
+    context->m_phrase_index->unload(index);
+    return true;
+}
+
+import_iterator_t * pinyin_begin_add_phrases(pinyin_context_t * context,
+                                             guint8 index){
+    import_iterator_t * iter = new import_iterator_t;
+    iter->m_context = context;
+    iter->m_phrase_index = index;
+    return iter;
+}
+
+bool pinyin_iterator_add_phrase(import_iterator_t * iter,
+                                const char * phrase,
+                                const char * pinyin,
+                                gint count){
+    /* if -1 == count, use the default value. */
+    const int default_count = 100;
+    if (-1 == count)
+        count = default_count;
+
+    pinyin_context_t * & context = iter->m_context;
+    FacadePhraseTable * & phrase_table = context->m_phrase_table;
+    FacadeChewingTable * & pinyin_table = context->m_pinyin_table;
+    FacadePhraseIndex * & phrase_index = context->m_phrase_index;
+
+    /* check whether the phrase exists in phrase table */
+    glong len_phrase = 0;
+    ucs4_t * ucs4_phrase = g_utf8_to_ucs4(phrase, -1, NULL, &len_phrase, NULL);
+    phrase_token_t token = null_token;
+
+    bool result = false;
+
+    pinyin_option_t options = PINYIN_CORRECT_ALL | USE_TONE;
+    FullPinyinParser2 parser;
+    ChewingKeyVector keys =
+        g_array_new(FALSE, FALSE, sizeof(ChewingKey));
+    ChewingKeyRestVector key_rests =
+        g_array_new(FALSE, FALSE, sizeof(ChewingKeyRest));
+
+    PhraseItem item;
+    int retval = phrase_table->search(len_phrase, ucs4_phrase, token);
+    if (!(retval & SEARCH_OK)) {
+        /* if not exists, get the maximum token,
+           then add it directly with maximum token + 1; */
+        PhraseIndexRange range;
+        retval = phrase_index->get_range(iter->m_phrase_index, range);
+
+        if (ERROR_OK == retval) {
+            token = range.m_range_end;
+
+            /* parse the pinyin. */
+            parser.parse(options, keys, key_rests, pinyin, strlen(pinyin));
+
+            if ( len_phrase == keys->len ) { /* valid pinyin */
+                phrase_table->add_index(len_phrase, ucs4_phrase, token);
+                pinyin_table->add_index
+                    (keys->len, (ChewingKey *)(keys->data), token);
+
+                item.set_phrase_string(len_phrase, ucs4_phrase);
+                item.append_pronunciation((ChewingKey *)(keys->data), count);
+                phrase_index->add_phrase_item(token, &item);
+                result = true;
+            }
+        }
+    } else {
+        /* if exists, check whether in the same sub phrase; */
+        if (PHRASE_INDEX_LIBRARY_INDEX(token) == iter->m_phrase_index) {
+            /* if so, remove the phrase, add the pinyin for the phrase item,
+               then add it back;*/
+            phrase_index->get_phrase_item(token, item);
+            assert(len_phrase == item.get_phrase_length());
+            ucs4_t tmp_phrase[MAX_PHRASE_LENGTH];
+            item.get_phrase_string(tmp_phrase);
+            assert(0 == memcmp
+                   (ucs4_phrase, tmp_phrase, sizeof(ucs4_t) * len_phrase));
+
+            /* parse the pinyin. */
+            parser.parse(options, keys, key_rests, pinyin, strlen(pinyin));
+
+            PhraseItem * removed_item = NULL;
+            retval = phrase_index->remove_phrase_item(token, removed_item);
+            if (ERROR_OK == retval) {
+                removed_item->append_pronunciation((ChewingKey *)keys->data,
+                                                   count);
+                phrase_index->add_phrase_item(token, removed_item);
+                delete removed_item;
+            }
+        } else {
+            /* if not, return false; */
+        }
+    }
+
+    g_array_free(key_rests, TRUE);
+    g_array_free(keys, TRUE);
+    g_free(ucs4_phrase);
+    return result;
+}
+
+void pinyin_end_add_phrases(import_iterator_t * iter){
+    /* compact the content memory chunk of phrase index. */
+    iter->m_context->m_phrase_index->compact();
+    delete iter;
+}
+
 bool pinyin_save(pinyin_context_t * context){
     if (!context->m_user_dir)
         return false;
@@ -192,44 +379,108 @@ bool pinyin_save(pinyin_context_t * context){
 
     context->m_phrase_index->compact();
 
-    MemoryChunk * oldchunk = new MemoryChunk;
-    MemoryChunk * newlog = new MemoryChunk;
+    /* skip the reserved zero phrase library. */
+    for (size_t i = 1; i < PHRASE_INDEX_LIBRARY_COUNT; ++i) {
+        PhraseIndexRange range;
+        int retval = context->m_phrase_index->get_range(i, range);
 
-    gchar * filename = g_build_filename(context->m_system_dir,
-                                        "gb_char.bin", NULL);
-    oldchunk->load(filename);
-    g_free(filename);
+        if (ERROR_NO_SUB_PHRASE_INDEX == retval)
+            continue;
 
-    context->m_phrase_index->diff(1, oldchunk, newlog);
-    gchar * tmpfilename = g_build_filename(context->m_user_dir,
-                                           "gb_char.dbin.tmp", NULL);
-    filename = g_build_filename(context->m_user_dir,
-                                "gb_char.dbin", NULL);
-    newlog->save(tmpfilename);
+        const pinyin_table_info_t * table_info = pinyin_phrase_files + i;
+
+        if (NOT_USED == table_info->m_file_type)
+            continue;
+
+        const char * userfilename = table_info->m_user_filename;
+
+        if (NULL == userfilename)
+            continue;
+
+        if (SYSTEM_FILE == table_info->m_file_type) {
+            /* system phrase library */
+            MemoryChunk * chunk = new MemoryChunk;
+            MemoryChunk * log = new MemoryChunk;
+            const char * systemfilename = table_info->m_system_filename;
+
+            /* check bin file in system dir. */
+            gchar * chunkfilename = g_build_filename(context->m_system_dir,
+                                                     systemfilename, NULL);
+            chunk->load(chunkfilename);
+            g_free(chunkfilename);
+            context->m_phrase_index->diff(i, chunk, log);
+
+            const char * userfilename = table_info->m_user_filename;
+            gchar * tmpfilename = g_strdup_printf("%s.tmp", userfilename);
+
+            gchar * tmppathname = g_build_filename(context->m_user_dir,
+                                                   tmpfilename, NULL);
+            g_free(tmpfilename);
+
+            gchar * chunkpathname = g_build_filename(context->m_user_dir,
+                                                     userfilename, NULL);
+            log->save(tmppathname);
+            rename(tmppathname, chunkpathname);
+            g_free(chunkpathname);
+            g_free(tmppathname);
+            delete log;
+        }
+
+        if (USER_FILE == table_info->m_file_type) {
+            /* user phrase library */
+            MemoryChunk * chunk = new MemoryChunk;
+            context->m_phrase_index->store(i, chunk);
+
+            const char * userfilename = table_info->m_user_filename;
+            gchar * tmpfilename = g_strdup_printf("%s.tmp", userfilename);
+            gchar * tmppathname = g_build_filename(context->m_user_dir,
+                                                   tmpfilename, NULL);
+            g_free(tmpfilename);
+
+            gchar * chunkpathname = g_build_filename(context->m_user_dir,
+                                                     userfilename, NULL);
+
+            chunk->save(tmppathname);
+            rename(tmppathname, chunkpathname);
+            g_free(chunkpathname);
+            g_free(tmppathname);
+            delete chunk;
+        }
+    }
+
+    /* save user chewing table */
+    gchar * tmpfilename = g_build_filename
+        (context->m_user_dir, "user_pinyin_index.bin.tmp", NULL);
+    unlink(tmpfilename);
+    gchar * filename = g_build_filename
+        (context->m_user_dir, "user_pinyin_index.bin", NULL);
+
+    MemoryChunk * chunk = new MemoryChunk;
+    context->m_pinyin_table->store(chunk);
+    chunk->save(tmpfilename);
+    delete chunk;
     rename(tmpfilename, filename);
     g_free(tmpfilename);
     g_free(filename);
-    delete newlog;
 
-    oldchunk = new MemoryChunk; newlog = new MemoryChunk;
-    filename = g_build_filename(context->m_system_dir,
-                                "gbk_char.bin", NULL);
-    oldchunk->load(filename);
-    g_free(filename);
+    /* save user phrase table */
+    tmpfilename = g_build_filename
+        (context->m_user_dir, "user_phrase_index.bin.tmp", NULL);
+    unlink(tmpfilename);
+    filename = g_build_filename
+        (context->m_user_dir, "user_phrase_index.bin", NULL);
 
-    context->m_phrase_index->diff(2, oldchunk, newlog);
-    tmpfilename = g_build_filename(context->m_user_dir,
-                                   "gbk_char.dbin.tmp", NULL);
-    filename = g_build_filename(context->m_user_dir,
-                                "gbk_char.dbin", NULL);
-    newlog->save(tmpfilename);
+    chunk = new MemoryChunk;
+    context->m_phrase_table->store(chunk);
+    chunk->save(tmpfilename);
+    delete chunk;
     rename(tmpfilename, filename);
     g_free(tmpfilename);
     g_free(filename);
-    delete newlog;
 
-    tmpfilename = g_build_filename(context->m_user_dir,
-                                   "user.db.tmp", NULL);
+    /* save user bi-gram */
+    tmpfilename = g_build_filename
+        (context->m_user_dir, "user.db.tmp", NULL);
     unlink(tmpfilename);
     filename = g_build_filename(context->m_user_dir, "user.db", NULL);
     context->m_user_bigram->save_db(tmpfilename);
@@ -271,8 +522,6 @@ void pinyin_fini(pinyin_context_t * context){
     g_free(context->m_system_dir);
     g_free(context->m_user_dir);
     context->m_modified = false;
-
-    delete context;
 }
 
 /* copy from options to context->m_options. */
@@ -358,17 +607,17 @@ bool pinyin_guess_sentence_with_prefix(pinyin_instance_t * instance,
     g_array_set_size(instance->m_prefixes, 0);
     g_array_append_val(instance->m_prefixes, sentence_start);
 
-    glong written = 0;
-    ucs4_t * ucs4_str = g_utf8_to_ucs4(prefix, -1, NULL, &written, NULL);
+    glong len_str = 0;
+    ucs4_t * ucs4_str = g_utf8_to_ucs4(prefix, -1, NULL, &len_str, NULL);
 
-    if (ucs4_str && written) {
+    if (ucs4_str && len_str) {
         /* add prefixes. */
-        for (ssize_t i = 1; i <= written; ++i) {
+        for (ssize_t i = 1; i <= len_str; ++i) {
             if (i > MAX_PHRASE_LENGTH)
                 break;
 
             phrase_token_t token = null_token;
-            ucs4_t * start = ucs4_str + written - i;
+            ucs4_t * start = ucs4_str + len_str - i;
             int result = context->m_phrase_table->search(i, start, token);
             if (result & SEARCH_OK)
                 g_array_append_val(instance->m_prefixes, token);
@@ -494,7 +743,7 @@ bool pinyin_in_chewing_keyboard(pinyin_instance_t * instance,
         (context->m_options, key, symbol);
 }
 
-
+#if 0
 static gint compare_item_with_token(gconstpointer lhs,
                                     gconstpointer rhs) {
     lookup_candidate_t * item_lhs = (lookup_candidate_t *)lhs;
@@ -505,6 +754,7 @@ static gint compare_item_with_token(gconstpointer lhs,
 
     return (token_lhs - token_rhs);
 }
+#endif
 
 static gint compare_item_with_frequency(gconstpointer lhs,
                                         gconstpointer rhs) {
@@ -593,6 +843,7 @@ static void _append_items(pinyin_context_t * context,
     }
 }
 
+#if 0
 static void _remove_duplicated_items(CandidateVector items) {
     /* remove the duplicated items. */
     phrase_token_t last_token = null_token, saved_token;
@@ -608,6 +859,7 @@ static void _remove_duplicated_items(CandidateVector items) {
         last_token = saved_token;
     }
 }
+#endif
 
 static void _compute_frequency_of_items(pinyin_context_t * context,
                                         phrase_token_t prev_token,
@@ -649,14 +901,168 @@ static void _compute_frequency_of_items(pinyin_context_t * context,
     }
 }
 
+static bool _prepend_sentence_candidate(pinyin_instance_t * instance,
+                                        CandidateVector candidates) {
+    /* check whether the best match candidate exists. */
+    gchar * sentence = NULL;
+    pinyin_get_sentence(instance, &sentence);
+    if (NULL == sentence)
+        return false;
+    g_free(sentence);
+
+    /* prepend best match candidate to candidates. */
+    lookup_candidate_t candidate;
+    candidate.m_candidate_type = BEST_MATCH_CANDIDATE;
+    g_array_prepend_val(candidates, candidate);
+
+    return true;
+}
+
+static bool _compute_phrase_strings_of_items(pinyin_instance_t * instance,
+                                             size_t offset,
+                                             CandidateVector candidates) {
+    /* populate m_phrase_string in lookup_candidate_t. */
+
+    for(size_t i = 0; i < candidates->len; ++i) {
+        lookup_candidate_t * candidate = &g_array_index
+            (candidates, lookup_candidate_t, i);
+
+        switch(candidate->m_candidate_type) {
+        case BEST_MATCH_CANDIDATE: {
+            gchar * sentence = NULL;
+            pinyin_get_sentence(instance, &sentence);
+            candidate->m_phrase_string = g_strdup
+                (g_utf8_offset_to_pointer(sentence, offset));
+            g_free(sentence);
+            break;
+        }
+        case NORMAL_CANDIDATE:
+        case DIVIDED_CANDIDATE:
+        case RESPLIT_CANDIDATE:
+            pinyin_translate_token
+                (instance, candidate->m_token, &(candidate->m_phrase_string));
+            break;
+        case ZOMBIE_CANDIDATE:
+            break;
+        }
+    }
+
+    return true;
+}
+
+static gint compare_indexed_item_with_phrase_string(gconstpointer lhs,
+                                                    gconstpointer rhs,
+                                                    gpointer userdata) {
+    size_t index_lhs = *((size_t *) lhs);
+    size_t index_rhs = *((size_t *) rhs);
+    CandidateVector candidates = (CandidateVector) userdata;
+
+    lookup_candidate_t * candidate_lhs =
+        &g_array_index(candidates, lookup_candidate_t, index_lhs);
+    lookup_candidate_t * candidate_rhs =
+        &g_array_index(candidates, lookup_candidate_t, index_rhs);
+
+    return -strcmp(candidate_lhs->m_phrase_string,
+                   candidate_rhs->m_phrase_string); /* in descendant order */
+}
+
+
+static bool _remove_duplicated_items_by_phrase_string
+(pinyin_instance_t * instance,
+ CandidateVector candidates) {
+    size_t i;
+    /* create the GArray of indexed item */
+    GArray * indices = g_array_new(FALSE, FALSE, sizeof(size_t));
+    for (i = 0; i < candidates->len; ++i)
+        g_array_append_val(indices, i);
+
+    /* sort the indices array by phrase array */
+    g_array_sort_with_data
+        (indices, compare_indexed_item_with_phrase_string, candidates);
+
+    /* mark duplicated items as zombie candidate */
+    lookup_candidate_t * cur_item, * saved_item = NULL;
+    for (i = 0; i < indices->len; ++i) {
+        size_t cur_index = g_array_index(indices, size_t, i);
+        cur_item = &g_array_index(candidates, lookup_candidate_t, cur_index);
+
+        /* handle the first candidate */
+        if (NULL == saved_item) {
+            saved_item = cur_item;
+            continue;
+        }
+
+        if (0 == strcmp(saved_item->m_phrase_string,
+                        cur_item->m_phrase_string)) {
+            /* found duplicated candidates */
+
+            /* keep best match candidate */
+            if (BEST_MATCH_CANDIDATE == saved_item->m_candidate_type) {
+                cur_item->m_candidate_type = ZOMBIE_CANDIDATE;
+                continue;
+            }
+
+            if (BEST_MATCH_CANDIDATE == cur_item->m_candidate_type) {
+                saved_item->m_candidate_type = ZOMBIE_CANDIDATE;
+                saved_item = cur_item;
+                continue;
+            }
+
+            /* keep the higher possiblity one
+               to quickly move the word forward in the candidate list */
+            if (cur_item->m_freq > saved_item->m_freq) {
+                /* find better candidate */
+                saved_item->m_candidate_type = ZOMBIE_CANDIDATE;
+                saved_item = cur_item;
+                continue;
+            } else {
+                cur_item->m_candidate_type = ZOMBIE_CANDIDATE;
+                continue;
+            }
+        } else {
+            /* keep the current candidate */
+            saved_item = cur_item;
+        }
+    }
+
+    g_array_free(indices, TRUE);
+
+    /* remove zombie candidate from the returned candidates */
+    for (i = 0; i < candidates->len; ++i) {
+        lookup_candidate_t * candidate = &g_array_index
+            (candidates, lookup_candidate_t, i);
+
+        if (ZOMBIE_CANDIDATE == candidate->m_candidate_type) {
+            g_array_remove_index(candidates, i);
+            i--;
+        }
+    }
+
+    return true;
+}
+
+static bool _free_candidates(CandidateVector candidates) {
+    /* free candidates */
+    for (size_t i = 0; i < candidates->len; ++i) {
+        lookup_candidate_t * candidate = &g_array_index
+            (candidates, lookup_candidate_t, i);
+        g_free(candidate->m_phrase_string);
+        g_free(candidate->m_new_pinyins);
+    }
+    g_array_set_size(candidates, 0);
+
+    return true;
+}
+
 bool pinyin_get_candidates(pinyin_instance_t * instance,
                            size_t offset,
-                           TokenVector candidates) {
+                           CandidateVector candidates) {
 
     pinyin_context_t * & context = instance->m_context;
     pinyin_option_t & options = context->m_options;
     ChewingKeyVector & pinyin_keys = instance->m_pinyin_keys;
-    g_array_set_size(candidates, 0);
+
+    _free_candidates(candidates);
 
     size_t pinyin_len = pinyin_keys->len - offset;
     ssize_t i;
@@ -701,9 +1107,11 @@ bool pinyin_get_candidates(pinyin_instance_t * instance,
         lookup_candidate_t template_item;
         _append_items(context, ranges, &template_item, items);
 
+#if 0
         g_array_sort(items, compare_item_with_token);
 
         _remove_duplicated_items(items);
+#endif
 
         _compute_frequency_of_items(context, prev_token, &merged_gram, items);
 
@@ -711,10 +1119,10 @@ bool pinyin_get_candidates(pinyin_instance_t * instance,
         g_array_sort(items, compare_item_with_frequency);
 
         /* transfer back items to tokens, and save it into candidates */
-        for (i = 0; i < items->len; ++i) {
+        for (size_t k = 0; k < items->len; ++k) {
             lookup_candidate_t * item = &g_array_index
-                (items, lookup_candidate_t, i);
-            g_array_append_val(candidates, item->m_token);
+                (items, lookup_candidate_t, k);
+            g_array_append_val(candidates, *item);
         }
 
         if (!(retval & SEARCH_CONTINUED))
@@ -722,13 +1130,20 @@ bool pinyin_get_candidates(pinyin_instance_t * instance,
     }
 
     g_array_free(items, TRUE);
-
     context->m_phrase_index->destroy_ranges(ranges);
-
     if (system_gram)
         delete system_gram;
     if (user_gram)
         delete user_gram;
+
+    /* post process to remove duplicated candidates */
+
+    _prepend_sentence_candidate(instance, candidates);
+
+    _compute_phrase_strings_of_items(instance, offset, candidates);
+
+    _remove_duplicated_items_by_phrase_string(instance, candidates);
+
     return true;
 }
 
@@ -745,7 +1160,7 @@ static bool _try_divided_table(pinyin_instance_t * instance,
     ChewingKeyRestVector & pinyin_key_rests = instance->m_pinyin_key_rests;
 
     assert(pinyin_keys->len == pinyin_key_rests->len);
-    gint num_keys = pinyin_keys->len;
+    guint num_keys = pinyin_keys->len;
     assert(offset < num_keys);
 
     /* handle "^xian$" -> "xi'an" here */
@@ -839,7 +1254,7 @@ static bool _try_resplit_table(pinyin_instance_t * instance,
     ChewingKeyRestVector & pinyin_key_rests = instance->m_pinyin_key_rests;
 
     assert(pinyin_keys->len == pinyin_key_rests->len);
-    gint num_keys = pinyin_keys->len;
+    guint num_keys = pinyin_keys->len;
     assert(offset + 1 < num_keys);
 
     guint16 next_tone = CHEWING_ZERO_TONE;
@@ -973,13 +1388,7 @@ bool pinyin_get_full_pinyin_candidates(pinyin_instance_t * instance,
     pinyin_option_t & options = context->m_options;
     ChewingKeyVector & pinyin_keys = instance->m_pinyin_keys;
 
-    /* free memory */
-    for (size_t i = 0; i < candidates->len; ++i) {
-        lookup_candidate_t * candidate = &g_array_index
-            (candidates, lookup_candidate_t, i);
-        g_free(candidate->m_new_pinyins);
-    }
-    g_array_set_size(candidates, 0);
+    _free_candidates(candidates);
 
     size_t pinyin_len = pinyin_keys->len - offset;
     pinyin_len = std_lite::min((size_t)MAX_PHRASE_LENGTH, pinyin_len);
@@ -1021,9 +1430,11 @@ bool pinyin_get_full_pinyin_candidates(pinyin_instance_t * instance,
 
             if (_try_divided_table(instance, ranges, offset, items)) {
 
+#if 0
                 g_array_sort(items, compare_item_with_token);
 
                 _remove_duplicated_items(items);
+#endif
 
                 _compute_frequency_of_items(context, prev_token,
                                             &merged_gram, items);
@@ -1072,9 +1483,11 @@ bool pinyin_get_full_pinyin_candidates(pinyin_instance_t * instance,
         lookup_candidate_t template_item;
         _append_items(context, ranges, &template_item, items);
 
+#if 0
         g_array_sort(items, compare_item_with_token);
 
         _remove_duplicated_items(items);
+#endif
 
         _compute_frequency_of_items(context, prev_token, &merged_gram, items);
 
@@ -1091,34 +1504,27 @@ bool pinyin_get_full_pinyin_candidates(pinyin_instance_t * instance,
     }
 
     g_array_free(items, TRUE);
-
     context->m_phrase_index->destroy_ranges(ranges);
-
     if (system_gram)
         delete system_gram;
     if (user_gram)
         delete user_gram;
+
+    /* post process to remove duplicated candidates */
+
+    _prepend_sentence_candidate(instance, candidates);
+
+    _compute_phrase_strings_of_items(instance, offset, candidates);
+
+    _remove_duplicated_items_by_phrase_string(instance, candidates);
+
     return true;
 }
 
 
 int pinyin_choose_candidate(pinyin_instance_t * instance,
                             size_t offset,
-                            phrase_token_t token){
-    pinyin_context_t * & context = instance->m_context;
-
-    guint8 len = context->m_pinyin_lookup->add_constraint
-        (instance->m_constraints, offset, token);
-
-    bool retval = context->m_pinyin_lookup->validate_constraint
-        (instance->m_constraints, instance->m_pinyin_keys) && len;
-
-    return offset + len;
-}
-
-int pinyin_choose_full_pinyin_candidate(pinyin_instance_t * instance,
-                                        size_t offset,
-                                        lookup_candidate_t * candidate){
+                            lookup_candidate_t * candidate){
     pinyin_context_t * & context = instance->m_context;
 
     if (DIVIDED_CANDIDATE == candidate->m_candidate_type ||
@@ -1144,14 +1550,26 @@ int pinyin_choose_full_pinyin_candidate(pinyin_instance_t * instance,
         /* Note: there may be some un-parsable input here. */
     }
 
+    /* sync m_constraints to the length of m_pinyin_keys. */
+    bool retval = context->m_pinyin_lookup->validate_constraint
+        (instance->m_constraints, instance->m_pinyin_keys);
+
     phrase_token_t token = candidate->m_token;
     guint8 len = context->m_pinyin_lookup->add_constraint
         (instance->m_constraints, offset, token);
 
-    bool retval = context->m_pinyin_lookup->validate_constraint
+    /* safe guard: validate the m_constraints again. */
+    retval = context->m_pinyin_lookup->validate_constraint
         (instance->m_constraints, instance->m_pinyin_keys) && len;
 
     return offset + len;
+}
+
+
+bool pinyin_free_candidates(pinyin_instance_t * instance,
+                            CandidateVector candidates) {
+    _free_candidates(candidates);
+    return true;
 }
 
 
@@ -1206,6 +1624,10 @@ bool pinyin_train(pinyin_instance_t * instance){
 }
 
 bool pinyin_reset(pinyin_instance_t * instance){
+    g_free(instance->m_raw_full_pinyin);
+    instance->m_raw_full_pinyin = NULL;
+
+    g_array_set_size(instance->m_prefixes, 0);
     g_array_set_size(instance->m_pinyin_keys, 0);
     g_array_set_size(instance->m_pinyin_key_rests, 0);
     g_array_set_size(instance->m_constraints, 0);
@@ -1215,9 +1637,5 @@ bool pinyin_reset(pinyin_instance_t * instance){
 }
 
 /**
- *  TODO: to be implemented.
- *    Note: prefix is the text before the pre-edit string.
- *  bool pinyin_get_guessed_sentence_with_prefix(...);
- *  bool pinyin_get_candidates_with_prefix(...);
- *  For context-dependent order of the candidates list.
+ *  Note: prefix is the text before the pre-edit string.
  */

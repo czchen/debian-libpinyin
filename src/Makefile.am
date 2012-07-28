@@ -13,7 +13,7 @@
 ##
 ## You should have received a copy of the GNU General Public License
 ## along with this program; if not, write to the Free Software
-## Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+## Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 AUTOMAKE_OPTIONS 	= gnu
 SUBDIRS 		= include storage lookup
@@ -32,7 +32,7 @@ INCLUDES                = -I$(top_srcdir)/src \
 			  -I$(top_srcdir)/src/lookup \
                           @GLIB2_CPPFLAGS@
 
-libpinyinincludedir	= $(includedir)/libpinyin-@LIBPINYIN_BINARY_VERSION@
+libpinyinincludedir	= $(includedir)/libpinyin-@VERSION@
 
 libpinyininclude_HEADERS= pinyin.h
 
@@ -47,7 +47,7 @@ libpinyin_la_SOURCES	= pinyin.cpp
 libpinyin_la_LIBADD	= storage/libstorage.la lookup/liblookup.la
 
 libpinyin_la_LDFLAGS	= -Wl,--version-script=$(srcdir)/libpinyin.ver \
-			  -version-info "0:3:0"
+			  -version-info @LT_VERSION_INFO@
 
 libpinyin_internal_la_SOURCES	= pinyin_internal.cpp
 

@@ -490,7 +490,9 @@ bool FacadePhraseIndex::load_text(guint8 phrase_index, FILE * infile){
 
     add_phrase_item( cur_token, item_ptr);
     delete item_ptr;
+#if 0
     m_total_freq += m_sub_phrase_indices[phrase_index]->get_phrase_index_total_freq();
+#endif
     return true;
 }
 
@@ -560,17 +562,27 @@ bool FacadePhraseIndex::compact(){
     return true;
 }
 
-
-const char * pinyin_phrase_files[PHRASE_INDEX_LIBRARY_COUNT] =
+namespace pinyin{
+const pinyin_table_info_t pinyin_phrase_files[PHRASE_INDEX_LIBRARY_COUNT] =
     {
-        NULL,
-        "gb_char.bin",
-        "gbk_char.bin"
-    };
+        {NULL, NULL, NULL, NOT_USED},
+        {"gb_char.table", "gb_char.bin", "gb_char.dbin", SYSTEM_FILE},
+        {"gbk_char.table", "gbk_char.bin", "gbk_char.dbin", SYSTEM_FILE},
+        {NULL, NULL, NULL, NOT_USED},
+        {NULL, NULL, NULL, NOT_USED},
 
-const char * pinyin_table_files[PHRASE_INDEX_LIBRARY_COUNT] =
-    {
-        NULL,
-        "gb_char.table",
-        "gbk_char.table"
+        {NULL, NULL, NULL, NOT_USED},
+        {NULL, NULL, NULL, NOT_USED},
+        {NULL, NULL, NULL, NOT_USED},
+        {NULL, NULL, NULL, NOT_USED},
+        {NULL, NULL, NULL, NOT_USED},
+
+        {NULL, NULL, NULL, NOT_USED},
+        {NULL, NULL, NULL, NOT_USED},
+        {NULL, NULL, NULL, NOT_USED},
+        {NULL, NULL, NULL, NOT_USED},
+        {NULL, NULL, NULL, NOT_USED},
+
+        {NULL, NULL, "user.bin", USER_FILE}
     };
+};
