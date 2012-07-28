@@ -37,16 +37,21 @@ typedef struct _pinyin_context_t pinyin_context_t;
 typedef struct _pinyin_instance_t pinyin_instance_t;
 typedef struct _lookup_candidate_t lookup_candidate_t;
 
+typedef struct _import_iterator_t import_iterator_t;
+
 typedef GArray * CandidateVector; /* GArray of lookup_candidate_t */
 
 enum lookup_candidate_type_t{
-    NORMAL_CANDIDATE = 1,
+    BEST_MATCH_CANDIDATE = 1,
+    NORMAL_CANDIDATE,
     DIVIDED_CANDIDATE,
-    RESPLIT_CANDIDATE
+    RESPLIT_CANDIDATE,
+    ZOMBIE_CANDIDATE
 };
 
 struct _lookup_candidate_t{
     enum lookup_candidate_type_t m_candidate_type;
+    gchar * m_phrase_string;
     phrase_token_t m_token;
     ChewingKeyRest m_orig_rest;
     gchar * m_new_pinyins;
@@ -54,6 +59,7 @@ struct _lookup_candidate_t{
 public:
     _lookup_candidate_t() {
         m_candidate_type = NORMAL_CANDIDATE;
+        m_phrase_string = NULL;
         m_token = null_token;
         m_new_pinyins = NULL;
         m_freq = 0;
@@ -80,6 +86,67 @@ struct _pinyin_instance_t{
  *
  */
 pinyin_context_t * pinyin_init(const char * systemdir, const char * userdir);
+
+/**
+ * pinyin_load_phrase_library:
+ * @context: the pinyin context.
+ * @index: the phrase index to be loaded.
+ * @returns: whether the load succeeded.
+ *
+ * Load the sub phrase library of the index.
+ *
+ */
+bool pinyin_load_phrase_library(pinyin_context_t * context,
+                                guint8 index);
+
+/**
+ * pinyin_unload_phrase_library:
+ * @context: the pinyin context.
+ * @index: the phrase index to be unloaded.
+ * @returns: whether the unload succeeded.
+ *
+ * Unload the sub phrase library of the index.
+ *
+ */
+bool pinyin_unload_phrase_library(pinyin_context_t * context,
+                                  guint8 index);
+
+/**
+ * pinyin_begin_add_phrases:
+ * @context: the pinyin context.
+ * @index: the phrase index to be imported.
+ * @returns: the import iterator.
+ *
+ * Begin to add phrases.
+ *
+ */
+import_iterator_t * pinyin_begin_add_phrases(pinyin_context_t * context,
+                                             guint8 index);
+
+/**
+ * pinyin_iterator_add_phrase:
+ * @iter: the import iterator.
+ * @phrase: the phrase string.
+ * @pinyin: the pinyin string.
+ * @count: the count of the phrase/pinyin pair, -1 to use the default value.
+ * @returns: whether the add operation succeeded.
+ *
+ * Add a pair of phrase and pinyin with count.
+ *
+ */
+bool pinyin_iterator_add_phrase(import_iterator_t * iter,
+                                const char * phrase,
+                                const char * pinyin,
+                                gint count);
+
+/**
+ * pinyin_end_add_phrases:
+ * @iter: the import iterator.
+ *
+ * End adding phrases.
+ *
+ */
+void pinyin_end_add_phrases(import_iterator_t * iter);
 
 /**
  * pinyin_save:
@@ -299,7 +366,7 @@ bool pinyin_in_chewing_keyboard(pinyin_instance_t * instance,
  * pinyin_get_candidates:
  * @instance: the pinyin instance.
  * @offset: the offset in the pinyin keys.
- * @candidates: The GArray of token candidates.
+ * @candidates: The GArray of lookup_candidate_t candidates.
  * @returns: whether a list of tokens are gotten.
  *
  * Get the candidates at the offset.
@@ -307,7 +374,7 @@ bool pinyin_in_chewing_keyboard(pinyin_instance_t * instance,
  */
 bool pinyin_get_candidates(pinyin_instance_t * instance,
                            size_t offset,
-                           TokenVector candidates);
+                           CandidateVector candidates);
 
 /**
  * pinyin_get_full_pinyin_candidates:
@@ -327,29 +394,27 @@ bool pinyin_get_full_pinyin_candidates(pinyin_instance_t * instance,
  * pinyin_choose_candidate:
  * @instance: the pinyin instance.
  * @offset: the offset in the pinyin keys.
- * @token: the selected candidate.
- * @returns: the cursor after the chosen candidate.
- *
- * Choose an candidate at the offset.
- *
- */
-int pinyin_choose_candidate(pinyin_instance_t * instance,
-                            size_t offset,
-                            phrase_token_t token);
-
-/**
- * pinyin_choose_full_pinyin_candidate:
- * @instance: the pinyin instance.
- * @offset: the offset in the pinyin keys.
- * @candidate: the selected lookup_candidate_t candidate.
+ * @candidate: the selected candidate.
  * @returns: the cursor after the chosen candidate.
  *
  * Choose a full pinyin candidate at the offset.
  *
  */
-int pinyin_choose_full_pinyin_candidate(pinyin_instance_t * instance,
-                                        size_t offset,
-                                        lookup_candidate_t * candidate);
+int pinyin_choose_candidate(pinyin_instance_t * instance,
+                            size_t offset,
+                            lookup_candidate_t * candidate);
+
+/**
+ * pinyin_free_candidates:
+ * @instance: the pinyin instance.
+ * @candidates: the GArray of lookup_candidate_t candidates.
+ * @returns: whether the free operation succeeded.
+ *
+ * Free the candidates.
+ *
+ */
+bool pinyin_free_candidates(pinyin_instance_t * instance,
+                            CandidateVector candidates);
 
 /**
  * pinyin_clear_constraint:
@@ -416,7 +481,7 @@ typedef ChewingKeyVector PinyinKeyVector;
 typedef ChewingKeyRestVector PinyinKeyPosVector;
 
 
-#define LIBPINYIN_FORMAT_VERSION  "0.6.91"
+#define LIBPINYIN_FORMAT_VERSION  "0.7.0"
 
 };
 

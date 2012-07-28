@@ -4,6 +4,11 @@ LIBPINYIN {
         pinyin_save;
         pinyin_set_double_pinyin_scheme;
         pinyin_set_chewing_scheme;
+        pinyin_load_phrase_library;
+        pinyin_unload_phrase_library;
+        pinyin_begin_add_phrases;
+        pinyin_iterator_add_phrase;
+        pinyin_end_add_phrases;
         pinyin_fini;
         pinyin_set_options;
         pinyin_alloc_instance;
@@ -22,7 +27,7 @@ LIBPINYIN {
         pinyin_get_candidates;
         pinyin_get_full_pinyin_candidates;
         pinyin_choose_candidate;
-        pinyin_choose_full_pinyin_candidate;
+        pinyin_free_candidates;
         pinyin_clear_constraint;
         pinyin_clear_constraints;
         pinyin_translate_token;
