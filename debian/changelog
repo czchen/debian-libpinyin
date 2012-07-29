@@ -1,7 +1,10 @@
 libpinyin (0.7.0-1) experimental; urgency=low
 
   * New upstream release
-  * Remove 0002-fixes_test_flexible_ngram.cpp_kfreebsd_build.patch, applied upstream
+  * Rename to libpinyin2, because upstream SONAME bump.
+  * Remove 0002-fixes_test_flexible_ngram.cpp_kfreebsd_build.patch,
+    applied upstream.
+  * Remove README.Debian, not needed anymore.
 
  -- Aron Xu <aron@debian.org>  Sun, 29 Jul 2012 23:34:56 +0800
 
