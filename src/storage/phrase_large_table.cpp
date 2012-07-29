@@ -112,10 +112,10 @@ int PhraseBitmapIndexLevel::search( int phrase_length, /* in */ ucs4_t phrase[],
     assert(phrase_length > 0);
 
     int result = SEARCH_NONE;
-    /* use the first 8-bit of the lower 16-bit for bitmap index,
+    /* use the lower 16-bit for bitmap index,
      * as most the higher 16-bit are zero.
      */
-    guint8 first_key = (phrase[0] & 0xFF00) >> 8;
+    guint16 first_key = phrase[0] & 0xFFFF;
 
     PhraseLengthIndexLevel * phrase_array = m_phrase_length_indexes[first_key];
     if ( phrase_array )
@@ -225,8 +225,7 @@ int PhraseArrayIndexLevel<phrase_length>::search(/* in */ ucs4_t phrase[], /* ou
 }
 
 int PhraseBitmapIndexLevel::add_index( int phrase_length, /* in */ ucs4_t phrase[], /* in */ phrase_token_t token){
-    guint8 first_key =  (phrase[0] & 0xFF00) >> 8;
-
+    guint16 first_key =  phrase[0] & 0xFFFF;
     PhraseLengthIndexLevel * & length_array = m_phrase_length_indexes[first_key];
     if ( !length_array ){
         length_array = new PhraseLengthIndexLevel();
@@ -235,18 +234,15 @@ int PhraseBitmapIndexLevel::add_index( int phrase_length, /* in */ ucs4_t phrase
 }
 
 int PhraseBitmapIndexLevel::remove_index( int phrase_length, /* in */ ucs4_t phrase[], /* out */ phrase_token_t & token){
-    guint8 first_key = (phrase[0] & 0xFF00) >> 8;
-
+    guint16 first_key = phrase[0] & 0xFFFF;
     PhraseLengthIndexLevel * &length_array = m_phrase_length_indexes[first_key];
     if ( length_array )
         return length_array->remove_index(phrase_length, phrase, token);
-    return ERROR_REMOVE_ITEM_DONOT_EXISTS;
+    return REMOVE_ITEM_DONOT_EXISTS;
 }
 
 int PhraseLengthIndexLevel::add_index( int phrase_length, /* in */ ucs4_t phrase[], /* in */ phrase_token_t token){
-    if (!(phrase_length + 1 < MAX_PHRASE_LENGTH))
-        return ERROR_PHRASE_TOO_LONG;
-
+    assert(phrase_length + 1 < MAX_PHRASE_LENGTH);
     if ( m_phrase_array_indexes -> len <= phrase_length )
         g_array_set_size(m_phrase_array_indexes, phrase_length + 1);
 
@@ -284,17 +280,15 @@ int PhraseLengthIndexLevel::add_index( int phrase_length, /* in */ ucs4_t phrase
 }
 
 int PhraseLengthIndexLevel::remove_index( int phrase_length, /* in */ ucs4_t phrase[], /* out */ phrase_token_t & token){
-    if (!(phrase_length + 1 < MAX_PHRASE_LENGTH))
-        return ERROR_PHRASE_TOO_LONG;
-
+    assert(phrase_length + 1 < MAX_PHRASE_LENGTH);
     if ( m_phrase_array_indexes -> len <= phrase_length )
-        return ERROR_REMOVE_ITEM_DONOT_EXISTS;
+        return REMOVE_ITEM_DONOT_EXISTS;
 #define CASE(len) case len:                                             \
     {                                                                   \
         PhraseArrayIndexLevel<len> * &array =  g_array_index            \
             (m_phrase_array_indexes, PhraseArrayIndexLevel<len> *, len); \
         if ( !array )                                                   \
-            return ERROR_REMOVE_ITEM_DONOT_EXISTS;                            \
+            return REMOVE_ITEM_DONOT_EXISTS;                            \
         return array->remove_index(phrase, token);                      \
     }
 
@@ -334,14 +328,14 @@ int PhraseArrayIndexLevel<phrase_length>::add_index(/* in */ ucs4_t phrase[], /*
 
     assert(range.second - range.first <= 1);
     if ( range.second - range.first == 1 )
-        return ERROR_INSERT_ITEM_EXISTS;
+        return INSERT_ITEM_EXISTS;
 
     PhraseIndexItem<phrase_length> * cur_elem = range.first;
     int offset = (cur_elem - buf_begin) *
         sizeof(PhraseIndexItem<phrase_length>);
     m_chunk.insert_content(offset, &new_elem,
                            sizeof(PhraseIndexItem<phrase_length> ));
-    return ERROR_OK;
+    return INSERT_OK;
 }
 
 template<size_t phrase_length>
@@ -358,13 +352,13 @@ int PhraseArrayIndexLevel<phrase_length>::remove_index(/* in */ ucs4_t phrase[],
     assert(range.second - range.first <= 1);
     PhraseIndexItem<phrase_length> * cur_elem = range.first;
     if ( range.first == range.second || cur_elem == buf_end)
-        return ERROR_REMOVE_ITEM_DONOT_EXISTS;
+        return REMOVE_ITEM_DONOT_EXISTS;
 
     token = cur_elem->m_token;
     int offset = (cur_elem -  buf_begin) *
         sizeof(PhraseIndexItem<phrase_length>);
     m_chunk.remove_content(offset, sizeof (PhraseIndexItem<phrase_length>));
-    return ERROR_OK;
+    return REMOVE_OK;
 }
 
 bool PhraseLargeTable::load_text(FILE * infile){
