@@ -1,3 +1,10 @@
+libpinyin (0.7.0-1) experimental; urgency=low
+
+  * New upstream release
+  * Remove 0002-fixes_test_flexible_ngram.cpp_kfreebsd_build.patch, applied upstream
+
+ -- Aron Xu <aron@debian.org>  Sun, 29 Jul 2012 23:34:56 +0800
+
 libpinyin (0.6.91-1) unstable; urgency=low
 
   * Imported Upstream version 0.6.91
