@@ -1,3 +1,9 @@
+libpinyin (0.7.0-2) experimental; urgency=low
+
+  * Add Breaks/Replaces entry for libpinyin0 (Closes: #684032).
+
+ -- Aron Xu <aron@debian.org>  Wed, 08 Aug 2012 16:53:44 +0000
+
 libpinyin (0.7.0-1) experimental; urgency=low
 
   * New upstream release

@@ -30,7 +30,8 @@ Architecture: any
 Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends}
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Breaks: fcitx-libpinyin (<< 0.2.0)
+Breaks: fcitx-libpinyin (<< 0.2.0), libpinyin0
+Replaces: libpinyin0
 Provides: libpinyin
 Suggests: libpinyin-utils
 Description: library to deal with PinYin
