@@ -1,7 +1,7 @@
 Source: libpinyin
 Priority: optional
 Maintainer: IME Packaging Team <pkg-ime-devel@lists.alioth.debian.org>
-Uploaders: Aron Xu <aron@debian.org>, YunQiang Su <wzssyqa@gmail.com>
+Uploaders: Aron Xu <aron@debian.org>, YunQiang Su <wzssyqa@gmail.com>, Asias He <asias@debian.org>
 DM-Upload-Allowed: yes
 Build-Depends: debhelper (>= 9), autotools-dev, libltdl-dev,
     libglib2.0-dev, libdb-dev, dh-autoreconf
