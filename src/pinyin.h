@@ -27,7 +27,6 @@
 #include "novel_types.h"
 #include "pinyin_custom2.h"
 #include "chewing_key.h"
-#include "pinyin_parser2.h"
 
 using namespace pinyin;
 
@@ -439,6 +438,19 @@ bool pinyin_clear_constraint(pinyin_instance_t * instance,
 bool pinyin_clear_constraints(pinyin_instance_t * instance);
 
 /**
+ * pinyin_lookup_token:
+ * @instance: the pinyin instance.
+ * @phrase: the phrase to be looked up.
+ * @token: the returned phrase token.
+ * @returns: whether the lookup operation is successful.
+ *
+ * Lookup the token for the phrase utf8 string.
+ *
+ */
+bool pinyin_lookup_token(pinyin_instance_t * instance,
+                         const char * phrase, phrase_token_t * token);
+
+/**
  * pinyin_translate_token:
  * @instance: the pinyin instance.
  * @token: the phrase token.
@@ -452,6 +464,19 @@ bool pinyin_clear_constraints(pinyin_instance_t * instance);
  */
 bool pinyin_translate_token(pinyin_instance_t * instance,
                             phrase_token_t token, char ** word);
+
+/**
+ * pinyin_get_pinyins_from_token:
+ * @instance: the pinyin instance.
+ * @token: the character token.
+ * @pinyinkeys: the pinyin keys from the character token.
+ * @returns: whether the pinyin keys is retrieved.
+ *
+ * Get the pinyin keys for the character token.
+ *
+ */
+bool pinyin_get_pinyins_from_token(pinyin_instance_t * instance,
+                                   phrase_token_t token, GArray * pinyinkeys);
 
 /**
  * pinyin_train:
@@ -481,7 +506,7 @@ typedef ChewingKeyVector PinyinKeyVector;
 typedef ChewingKeyRestVector PinyinKeyPosVector;
 
 
-#define LIBPINYIN_FORMAT_VERSION  "0.7.0"
+#define LIBPINYIN_FORMAT_VERSION  "0.7.91"
 
 };
 

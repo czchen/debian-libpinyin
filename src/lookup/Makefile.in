@@ -48,11 +48,13 @@ CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 LTLIBRARIES = $(noinst_LTLIBRARIES)
 liblookup_la_LIBADD =
-am_liblookup_la_OBJECTS = liblookup_la-pinyin_lookup.lo \
-	liblookup_la-winner_tree.lo liblookup_la-phrase_lookup.lo \
-	liblookup_la-lookup.lo
+am_liblookup_la_OBJECTS = liblookup_la-pinyin_lookup2.lo \
+	liblookup_la-phrase_lookup.lo liblookup_la-lookup.lo
 liblookup_la_OBJECTS = $(am_liblookup_la_OBJECTS)
-liblookup_la_LINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) \
+AM_V_lt = $(am__v_lt_@AM_V@)
+am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
+am__v_lt_0 = --silent
+liblookup_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CXXLD) $(liblookup_la_CXXFLAGS) \
 	$(CXXFLAGS) $(liblookup_la_LDFLAGS) $(LDFLAGS) -o $@
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
@@ -61,13 +63,26 @@ am__depfiles_maybe = depfiles
 am__mv = mv -f
 CXXCOMPILE = $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
 	$(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS)
-LTCXXCOMPILE = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
-	--mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
-	$(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS)
+LTCXXCOMPILE = $(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) \
+	$(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) \
+	$(AM_CXXFLAGS) $(CXXFLAGS)
+AM_V_CXX = $(am__v_CXX_@AM_V@)
+am__v_CXX_ = $(am__v_CXX_@AM_DEFAULT_V@)
+am__v_CXX_0 = @echo "  CXX   " $@;
+AM_V_at = $(am__v_at_@AM_V@)
+am__v_at_ = $(am__v_at_@AM_DEFAULT_V@)
+am__v_at_0 = @
 CXXLD = $(CXX)
-CXXLINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
-	--mode=link $(CXXLD) $(AM_CXXFLAGS) $(CXXFLAGS) $(AM_LDFLAGS) \
-	$(LDFLAGS) -o $@
+CXXLINK = $(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CXXLD) $(AM_CXXFLAGS) \
+	$(CXXFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
+AM_V_CXXLD = $(am__v_CXXLD_@AM_V@)
+am__v_CXXLD_ = $(am__v_CXXLD_@AM_DEFAULT_V@)
+am__v_CXXLD_0 = @echo "  CXXLD " $@;
+AM_V_GEN = $(am__v_GEN_@AM_V@)
+am__v_GEN_ = $(am__v_GEN_@AM_DEFAULT_V@)
+am__v_GEN_0 = @echo "  GEN   " $@;
 SOURCES = $(liblookup_la_SOURCES)
 DIST_SOURCES = $(liblookup_la_SOURCES)
 HEADERS = $(noinst_HEADERS)
@@ -76,6 +91,7 @@ CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 ACLOCAL = @ACLOCAL@
 AMTAR = @AMTAR@
+AM_DEFAULT_VERBOSITY = @AM_DEFAULT_VERBOSITY@
 AR = @AR@
 ARGZ_H = @ARGZ_H@
 AS = @AS@
@@ -227,15 +243,13 @@ INCLUDES = -I$(top_srcdir)/src/include \
 			  @GLIB2_CPPFLAGS@
 
 noinst_HEADERS = lookup.h \
-			  pinyin_lookup.h \
-			  phrase_lookup.h \
-			  winner_tree.h
+			  pinyin_lookup2.h \
+			  phrase_lookup.h
 
 noinst_LTLIBRARIES = liblookup.la
 liblookup_la_CXXFLAGS = "-fPIC"
 liblookup_la_LDFLAGS = -static
-liblookup_la_SOURCES = pinyin_lookup.cpp \
-			  winner_tree.cpp \
+liblookup_la_SOURCES = pinyin_lookup2.cpp \
 			  phrase_lookup.cpp \
 			  lookup.cpp
 
@@ -283,7 +297,7 @@ clean-noinstLTLIBRARIES:
 	  rm -f "$${dir}/so_locations"; \
 	done
 liblookup.la: $(liblookup_la_OBJECTS) $(liblookup_la_DEPENDENCIES) $(EXTRA_liblookup_la_DEPENDENCIES) 
-	$(liblookup_la_LINK)  $(liblookup_la_OBJECTS) $(liblookup_la_LIBADD) $(LIBS)
+	$(AM_V_CXXLD)$(liblookup_la_LINK)  $(liblookup_la_OBJECTS) $(liblookup_la_LIBADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -293,57 +307,49 @@ distclean-compile:
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/liblookup_la-lookup.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/liblookup_la-phrase_lookup.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/liblookup_la-pinyin_lookup.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/liblookup_la-winner_tree.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/liblookup_la-pinyin_lookup2.Plo@am__quote@
 
 .cpp.o:
-@am__fastdepCXX_TRUE@	$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXXCOMPILE) -c -o $@ $<
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXXCOMPILE) -c -o $@ $<
 
 .cpp.obj:
-@am__fastdepCXX_TRUE@	$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ `$(CYGPATH_W) '$<'`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ `$(CYGPATH_W) '$<'`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXXCOMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXXCOMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
 
 .cpp.lo:
-@am__fastdepCXX_TRUE@	$(LTCXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Plo
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(LTCXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Plo
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(LTCXXCOMPILE) -c -o $@ $<
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(LTCXXCOMPILE) -c -o $@ $<
 
-liblookup_la-pinyin_lookup.lo: pinyin_lookup.cpp
-@am__fastdepCXX_TRUE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liblookup_la_CXXFLAGS) $(CXXFLAGS) -MT liblookup_la-pinyin_lookup.lo -MD -MP -MF $(DEPDIR)/liblookup_la-pinyin_lookup.Tpo -c -o liblookup_la-pinyin_lookup.lo `test -f 'pinyin_lookup.cpp' || echo '$(srcdir)/'`pinyin_lookup.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/liblookup_la-pinyin_lookup.Tpo $(DEPDIR)/liblookup_la-pinyin_lookup.Plo
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='pinyin_lookup.cpp' object='liblookup_la-pinyin_lookup.lo' libtool=yes @AMDEPBACKSLASH@
+liblookup_la-pinyin_lookup2.lo: pinyin_lookup2.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liblookup_la_CXXFLAGS) $(CXXFLAGS) -MT liblookup_la-pinyin_lookup2.lo -MD -MP -MF $(DEPDIR)/liblookup_la-pinyin_lookup2.Tpo -c -o liblookup_la-pinyin_lookup2.lo `test -f 'pinyin_lookup2.cpp' || echo '$(srcdir)/'`pinyin_lookup2.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/liblookup_la-pinyin_lookup2.Tpo $(DEPDIR)/liblookup_la-pinyin_lookup2.Plo
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='pinyin_lookup2.cpp' object='liblookup_la-pinyin_lookup2.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liblookup_la_CXXFLAGS) $(CXXFLAGS) -c -o liblookup_la-pinyin_lookup.lo `test -f 'pinyin_lookup.cpp' || echo '$(srcdir)/'`pinyin_lookup.cpp
-
-liblookup_la-winner_tree.lo: winner_tree.cpp
-@am__fastdepCXX_TRUE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liblookup_la_CXXFLAGS) $(CXXFLAGS) -MT liblookup_la-winner_tree.lo -MD -MP -MF $(DEPDIR)/liblookup_la-winner_tree.Tpo -c -o liblookup_la-winner_tree.lo `test -f 'winner_tree.cpp' || echo '$(srcdir)/'`winner_tree.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/liblookup_la-winner_tree.Tpo $(DEPDIR)/liblookup_la-winner_tree.Plo
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='winner_tree.cpp' object='liblookup_la-winner_tree.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liblookup_la_CXXFLAGS) $(CXXFLAGS) -c -o liblookup_la-winner_tree.lo `test -f 'winner_tree.cpp' || echo '$(srcdir)/'`winner_tree.cpp
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liblookup_la_CXXFLAGS) $(CXXFLAGS) -c -o liblookup_la-pinyin_lookup2.lo `test -f 'pinyin_lookup2.cpp' || echo '$(srcdir)/'`pinyin_lookup2.cpp
 
 liblookup_la-phrase_lookup.lo: phrase_lookup.cpp
-@am__fastdepCXX_TRUE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liblookup_la_CXXFLAGS) $(CXXFLAGS) -MT liblookup_la-phrase_lookup.lo -MD -MP -MF $(DEPDIR)/liblookup_la-phrase_lookup.Tpo -c -o liblookup_la-phrase_lookup.lo `test -f 'phrase_lookup.cpp' || echo '$(srcdir)/'`phrase_lookup.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/liblookup_la-phrase_lookup.Tpo $(DEPDIR)/liblookup_la-phrase_lookup.Plo
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='phrase_lookup.cpp' object='liblookup_la-phrase_lookup.lo' libtool=yes @AMDEPBACKSLASH@
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liblookup_la_CXXFLAGS) $(CXXFLAGS) -MT liblookup_la-phrase_lookup.lo -MD -MP -MF $(DEPDIR)/liblookup_la-phrase_lookup.Tpo -c -o liblookup_la-phrase_lookup.lo `test -f 'phrase_lookup.cpp' || echo '$(srcdir)/'`phrase_lookup.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/liblookup_la-phrase_lookup.Tpo $(DEPDIR)/liblookup_la-phrase_lookup.Plo
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='phrase_lookup.cpp' object='liblookup_la-phrase_lookup.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liblookup_la_CXXFLAGS) $(CXXFLAGS) -c -o liblookup_la-phrase_lookup.lo `test -f 'phrase_lookup.cpp' || echo '$(srcdir)/'`phrase_lookup.cpp
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liblookup_la_CXXFLAGS) $(CXXFLAGS) -c -o liblookup_la-phrase_lookup.lo `test -f 'phrase_lookup.cpp' || echo '$(srcdir)/'`phrase_lookup.cpp
 
 liblookup_la-lookup.lo: lookup.cpp
-@am__fastdepCXX_TRUE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liblookup_la_CXXFLAGS) $(CXXFLAGS) -MT liblookup_la-lookup.lo -MD -MP -MF $(DEPDIR)/liblookup_la-lookup.Tpo -c -o liblookup_la-lookup.lo `test -f 'lookup.cpp' || echo '$(srcdir)/'`lookup.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/liblookup_la-lookup.Tpo $(DEPDIR)/liblookup_la-lookup.Plo
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='lookup.cpp' object='liblookup_la-lookup.lo' libtool=yes @AMDEPBACKSLASH@
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liblookup_la_CXXFLAGS) $(CXXFLAGS) -MT liblookup_la-lookup.lo -MD -MP -MF $(DEPDIR)/liblookup_la-lookup.Tpo -c -o liblookup_la-lookup.lo `test -f 'lookup.cpp' || echo '$(srcdir)/'`lookup.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/liblookup_la-lookup.Tpo $(DEPDIR)/liblookup_la-lookup.Plo
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='lookup.cpp' object='liblookup_la-lookup.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liblookup_la_CXXFLAGS) $(CXXFLAGS) -c -o liblookup_la-lookup.lo `test -f 'lookup.cpp' || echo '$(srcdir)/'`lookup.cpp
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liblookup_la_CXXFLAGS) $(CXXFLAGS) -c -o liblookup_la-lookup.lo `test -f 'lookup.cpp' || echo '$(srcdir)/'`lookup.cpp
 
 mostlyclean-libtool:
 	-rm -f *.lo

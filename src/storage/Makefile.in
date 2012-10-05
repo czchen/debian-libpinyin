@@ -49,26 +49,43 @@ CONFIG_CLEAN_VPATH_FILES =
 LTLIBRARIES = $(noinst_LTLIBRARIES)
 libstorage_la_LIBADD =
 am_libstorage_la_OBJECTS = libstorage_la-phrase_index.lo \
-	libstorage_la-phrase_large_table.lo libstorage_la-ngram.lo \
+	libstorage_la-phrase_large_table2.lo libstorage_la-ngram.lo \
 	libstorage_la-tag_utility.lo libstorage_la-pinyin_parser2.lo \
 	libstorage_la-chewing_large_table.lo
 libstorage_la_OBJECTS = $(am_libstorage_la_OBJECTS)
-libstorage_la_LINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CXXLD) $(libstorage_la_CXXFLAGS) \
-	$(CXXFLAGS) $(libstorage_la_LDFLAGS) $(LDFLAGS) -o $@
+AM_V_lt = $(am__v_lt_@AM_V@)
+am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
+am__v_lt_0 = --silent
+libstorage_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CXX \
+	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CXXLD) \
+	$(libstorage_la_CXXFLAGS) $(CXXFLAGS) $(libstorage_la_LDFLAGS) \
+	$(LDFLAGS) -o $@
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
 am__mv = mv -f
 CXXCOMPILE = $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
 	$(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS)
-LTCXXCOMPILE = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
-	--mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
-	$(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS)
+LTCXXCOMPILE = $(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) \
+	$(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) \
+	$(AM_CXXFLAGS) $(CXXFLAGS)
+AM_V_CXX = $(am__v_CXX_@AM_V@)
+am__v_CXX_ = $(am__v_CXX_@AM_DEFAULT_V@)
+am__v_CXX_0 = @echo "  CXX   " $@;
+AM_V_at = $(am__v_at_@AM_V@)
+am__v_at_ = $(am__v_at_@AM_DEFAULT_V@)
+am__v_at_0 = @
 CXXLD = $(CXX)
-CXXLINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
-	--mode=link $(CXXLD) $(AM_CXXFLAGS) $(CXXFLAGS) $(AM_LDFLAGS) \
-	$(LDFLAGS) -o $@
+CXXLINK = $(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CXXLD) $(AM_CXXFLAGS) \
+	$(CXXFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
+AM_V_CXXLD = $(am__v_CXXLD_@AM_V@)
+am__v_CXXLD_ = $(am__v_CXXLD_@AM_DEFAULT_V@)
+am__v_CXXLD_0 = @echo "  CXXLD " $@;
+AM_V_GEN = $(am__v_GEN_@AM_V@)
+am__v_GEN_ = $(am__v_GEN_@AM_DEFAULT_V@)
+am__v_GEN_0 = @echo "  GEN   " $@;
 SOURCES = $(libstorage_la_SOURCES)
 DIST_SOURCES = $(libstorage_la_SOURCES)
 am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
@@ -105,6 +122,7 @@ CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 ACLOCAL = @ACLOCAL@
 AMTAR = @AMTAR@
+AM_DEFAULT_VERBOSITY = @AM_DEFAULT_VERBOSITY@
 AR = @AR@
 ARGZ_H = @ARGZ_H@
 AS = @AS@
@@ -257,12 +275,12 @@ INCLUDES = -I$(top_srcdir)/src/include \
 libpinyinincludedir = $(includedir)/libpinyin-@VERSION@
 libpinyininclude_HEADERS = chewing_enum.h \
 			  chewing_key.h \
-			  pinyin_custom2.h \
-			  pinyin_parser2.h
+			  pinyin_custom2.h
 
-noinst_HEADERS = phrase_index.h \
+noinst_HEADERS = pinyin_parser2.h \
+			  phrase_index.h \
 			  phrase_index_logger.h \
-			  phrase_large_table.h \
+			  phrase_large_table2.h \
 			  ngram.h \
 			  flexible_ngram.h \
 			  tag_utility.h \
@@ -272,13 +290,13 @@ noinst_HEADERS = phrase_index.h \
 			  pinyin_phrase2.h \
 			  chewing_large_table.h \
 			  facade_chewing_table.h \
-			  facade_phrase_table.h
+			  facade_phrase_table2.h
 
 noinst_LTLIBRARIES = libstorage.la
 libstorage_la_CXXFLAGS = "-fPIC"
 libstorage_la_LDFLAGS = -static
 libstorage_la_SOURCES = phrase_index.cpp \
-			   phrase_large_table.cpp \
+			   phrase_large_table2.cpp \
 			   ngram.cpp \
 			   tag_utility.cpp \
 			   pinyin_parser2.cpp \
@@ -328,7 +346,7 @@ clean-noinstLTLIBRARIES:
 	  rm -f "$${dir}/so_locations"; \
 	done
 libstorage.la: $(libstorage_la_OBJECTS) $(libstorage_la_DEPENDENCIES) $(EXTRA_libstorage_la_DEPENDENCIES) 
-	$(libstorage_la_LINK)  $(libstorage_la_OBJECTS) $(libstorage_la_LIBADD) $(LIBS)
+	$(AM_V_CXXLD)$(libstorage_la_LINK)  $(libstorage_la_OBJECTS) $(libstorage_la_LIBADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -339,72 +357,72 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libstorage_la-chewing_large_table.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libstorage_la-ngram.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libstorage_la-phrase_index.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libstorage_la-phrase_large_table.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libstorage_la-phrase_large_table2.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libstorage_la-pinyin_parser2.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libstorage_la-tag_utility.Plo@am__quote@
 
 .cpp.o:
-@am__fastdepCXX_TRUE@	$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXXCOMPILE) -c -o $@ $<
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXXCOMPILE) -c -o $@ $<
 
 .cpp.obj:
-@am__fastdepCXX_TRUE@	$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ `$(CYGPATH_W) '$<'`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ `$(CYGPATH_W) '$<'`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXXCOMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXXCOMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
 
 .cpp.lo:
-@am__fastdepCXX_TRUE@	$(LTCXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Plo
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(LTCXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Plo
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(LTCXXCOMPILE) -c -o $@ $<
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(LTCXXCOMPILE) -c -o $@ $<
 
 libstorage_la-phrase_index.lo: phrase_index.cpp
-@am__fastdepCXX_TRUE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstorage_la_CXXFLAGS) $(CXXFLAGS) -MT libstorage_la-phrase_index.lo -MD -MP -MF $(DEPDIR)/libstorage_la-phrase_index.Tpo -c -o libstorage_la-phrase_index.lo `test -f 'phrase_index.cpp' || echo '$(srcdir)/'`phrase_index.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/libstorage_la-phrase_index.Tpo $(DEPDIR)/libstorage_la-phrase_index.Plo
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='phrase_index.cpp' object='libstorage_la-phrase_index.lo' libtool=yes @AMDEPBACKSLASH@
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstorage_la_CXXFLAGS) $(CXXFLAGS) -MT libstorage_la-phrase_index.lo -MD -MP -MF $(DEPDIR)/libstorage_la-phrase_index.Tpo -c -o libstorage_la-phrase_index.lo `test -f 'phrase_index.cpp' || echo '$(srcdir)/'`phrase_index.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libstorage_la-phrase_index.Tpo $(DEPDIR)/libstorage_la-phrase_index.Plo
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='phrase_index.cpp' object='libstorage_la-phrase_index.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstorage_la_CXXFLAGS) $(CXXFLAGS) -c -o libstorage_la-phrase_index.lo `test -f 'phrase_index.cpp' || echo '$(srcdir)/'`phrase_index.cpp
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstorage_la_CXXFLAGS) $(CXXFLAGS) -c -o libstorage_la-phrase_index.lo `test -f 'phrase_index.cpp' || echo '$(srcdir)/'`phrase_index.cpp
 
-libstorage_la-phrase_large_table.lo: phrase_large_table.cpp
-@am__fastdepCXX_TRUE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstorage_la_CXXFLAGS) $(CXXFLAGS) -MT libstorage_la-phrase_large_table.lo -MD -MP -MF $(DEPDIR)/libstorage_la-phrase_large_table.Tpo -c -o libstorage_la-phrase_large_table.lo `test -f 'phrase_large_table.cpp' || echo '$(srcdir)/'`phrase_large_table.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/libstorage_la-phrase_large_table.Tpo $(DEPDIR)/libstorage_la-phrase_large_table.Plo
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='phrase_large_table.cpp' object='libstorage_la-phrase_large_table.lo' libtool=yes @AMDEPBACKSLASH@
+libstorage_la-phrase_large_table2.lo: phrase_large_table2.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstorage_la_CXXFLAGS) $(CXXFLAGS) -MT libstorage_la-phrase_large_table2.lo -MD -MP -MF $(DEPDIR)/libstorage_la-phrase_large_table2.Tpo -c -o libstorage_la-phrase_large_table2.lo `test -f 'phrase_large_table2.cpp' || echo '$(srcdir)/'`phrase_large_table2.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libstorage_la-phrase_large_table2.Tpo $(DEPDIR)/libstorage_la-phrase_large_table2.Plo
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='phrase_large_table2.cpp' object='libstorage_la-phrase_large_table2.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstorage_la_CXXFLAGS) $(CXXFLAGS) -c -o libstorage_la-phrase_large_table.lo `test -f 'phrase_large_table.cpp' || echo '$(srcdir)/'`phrase_large_table.cpp
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstorage_la_CXXFLAGS) $(CXXFLAGS) -c -o libstorage_la-phrase_large_table2.lo `test -f 'phrase_large_table2.cpp' || echo '$(srcdir)/'`phrase_large_table2.cpp
 
 libstorage_la-ngram.lo: ngram.cpp
-@am__fastdepCXX_TRUE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstorage_la_CXXFLAGS) $(CXXFLAGS) -MT libstorage_la-ngram.lo -MD -MP -MF $(DEPDIR)/libstorage_la-ngram.Tpo -c -o libstorage_la-ngram.lo `test -f 'ngram.cpp' || echo '$(srcdir)/'`ngram.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/libstorage_la-ngram.Tpo $(DEPDIR)/libstorage_la-ngram.Plo
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='ngram.cpp' object='libstorage_la-ngram.lo' libtool=yes @AMDEPBACKSLASH@
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstorage_la_CXXFLAGS) $(CXXFLAGS) -MT libstorage_la-ngram.lo -MD -MP -MF $(DEPDIR)/libstorage_la-ngram.Tpo -c -o libstorage_la-ngram.lo `test -f 'ngram.cpp' || echo '$(srcdir)/'`ngram.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libstorage_la-ngram.Tpo $(DEPDIR)/libstorage_la-ngram.Plo
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='ngram.cpp' object='libstorage_la-ngram.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstorage_la_CXXFLAGS) $(CXXFLAGS) -c -o libstorage_la-ngram.lo `test -f 'ngram.cpp' || echo '$(srcdir)/'`ngram.cpp
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstorage_la_CXXFLAGS) $(CXXFLAGS) -c -o libstorage_la-ngram.lo `test -f 'ngram.cpp' || echo '$(srcdir)/'`ngram.cpp
 
 libstorage_la-tag_utility.lo: tag_utility.cpp
-@am__fastdepCXX_TRUE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstorage_la_CXXFLAGS) $(CXXFLAGS) -MT libstorage_la-tag_utility.lo -MD -MP -MF $(DEPDIR)/libstorage_la-tag_utility.Tpo -c -o libstorage_la-tag_utility.lo `test -f 'tag_utility.cpp' || echo '$(srcdir)/'`tag_utility.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/libstorage_la-tag_utility.Tpo $(DEPDIR)/libstorage_la-tag_utility.Plo
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='tag_utility.cpp' object='libstorage_la-tag_utility.lo' libtool=yes @AMDEPBACKSLASH@
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstorage_la_CXXFLAGS) $(CXXFLAGS) -MT libstorage_la-tag_utility.lo -MD -MP -MF $(DEPDIR)/libstorage_la-tag_utility.Tpo -c -o libstorage_la-tag_utility.lo `test -f 'tag_utility.cpp' || echo '$(srcdir)/'`tag_utility.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libstorage_la-tag_utility.Tpo $(DEPDIR)/libstorage_la-tag_utility.Plo
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='tag_utility.cpp' object='libstorage_la-tag_utility.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstorage_la_CXXFLAGS) $(CXXFLAGS) -c -o libstorage_la-tag_utility.lo `test -f 'tag_utility.cpp' || echo '$(srcdir)/'`tag_utility.cpp
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstorage_la_CXXFLAGS) $(CXXFLAGS) -c -o libstorage_la-tag_utility.lo `test -f 'tag_utility.cpp' || echo '$(srcdir)/'`tag_utility.cpp
 
 libstorage_la-pinyin_parser2.lo: pinyin_parser2.cpp
-@am__fastdepCXX_TRUE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstorage_la_CXXFLAGS) $(CXXFLAGS) -MT libstorage_la-pinyin_parser2.lo -MD -MP -MF $(DEPDIR)/libstorage_la-pinyin_parser2.Tpo -c -o libstorage_la-pinyin_parser2.lo `test -f 'pinyin_parser2.cpp' || echo '$(srcdir)/'`pinyin_parser2.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/libstorage_la-pinyin_parser2.Tpo $(DEPDIR)/libstorage_la-pinyin_parser2.Plo
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='pinyin_parser2.cpp' object='libstorage_la-pinyin_parser2.lo' libtool=yes @AMDEPBACKSLASH@
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstorage_la_CXXFLAGS) $(CXXFLAGS) -MT libstorage_la-pinyin_parser2.lo -MD -MP -MF $(DEPDIR)/libstorage_la-pinyin_parser2.Tpo -c -o libstorage_la-pinyin_parser2.lo `test -f 'pinyin_parser2.cpp' || echo '$(srcdir)/'`pinyin_parser2.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libstorage_la-pinyin_parser2.Tpo $(DEPDIR)/libstorage_la-pinyin_parser2.Plo
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='pinyin_parser2.cpp' object='libstorage_la-pinyin_parser2.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstorage_la_CXXFLAGS) $(CXXFLAGS) -c -o libstorage_la-pinyin_parser2.lo `test -f 'pinyin_parser2.cpp' || echo '$(srcdir)/'`pinyin_parser2.cpp
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstorage_la_CXXFLAGS) $(CXXFLAGS) -c -o libstorage_la-pinyin_parser2.lo `test -f 'pinyin_parser2.cpp' || echo '$(srcdir)/'`pinyin_parser2.cpp
 
 libstorage_la-chewing_large_table.lo: chewing_large_table.cpp
-@am__fastdepCXX_TRUE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstorage_la_CXXFLAGS) $(CXXFLAGS) -MT libstorage_la-chewing_large_table.lo -MD -MP -MF $(DEPDIR)/libstorage_la-chewing_large_table.Tpo -c -o libstorage_la-chewing_large_table.lo `test -f 'chewing_large_table.cpp' || echo '$(srcdir)/'`chewing_large_table.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/libstorage_la-chewing_large_table.Tpo $(DEPDIR)/libstorage_la-chewing_large_table.Plo
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='chewing_large_table.cpp' object='libstorage_la-chewing_large_table.lo' libtool=yes @AMDEPBACKSLASH@
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstorage_la_CXXFLAGS) $(CXXFLAGS) -MT libstorage_la-chewing_large_table.lo -MD -MP -MF $(DEPDIR)/libstorage_la-chewing_large_table.Tpo -c -o libstorage_la-chewing_large_table.lo `test -f 'chewing_large_table.cpp' || echo '$(srcdir)/'`chewing_large_table.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libstorage_la-chewing_large_table.Tpo $(DEPDIR)/libstorage_la-chewing_large_table.Plo
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='chewing_large_table.cpp' object='libstorage_la-chewing_large_table.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstorage_la_CXXFLAGS) $(CXXFLAGS) -c -o libstorage_la-chewing_large_table.lo `test -f 'chewing_large_table.cpp' || echo '$(srcdir)/'`chewing_large_table.cpp
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libstorage_la_CXXFLAGS) $(CXXFLAGS) -c -o libstorage_la-chewing_large_table.lo `test -f 'chewing_large_table.cpp' || echo '$(srcdir)/'`chewing_large_table.cpp
 
 mostlyclean-libtool:
 	-rm -f *.lo

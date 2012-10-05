@@ -57,7 +57,7 @@ bool get_possible_pinyin(FacadePhraseIndex * phrase_index,
     return true;
 }
 
-bool get_best_match(PinyinLookup * pinyin_lookup,
+bool get_best_match(PinyinLookup2 * pinyin_lookup,
                     ChewingKeyVector keys, TokenVector tokens){
     /* prepare the prefixes for get_best_match. */
     TokenVector prefixes = g_array_new
@@ -81,7 +81,7 @@ bool get_best_match(PinyinLookup * pinyin_lookup,
     return retval;
 }
 
-bool do_one_test(PinyinLookup * pinyin_lookup,
+bool do_one_test(PinyinLookup2 * pinyin_lookup,
                  FacadePhraseIndex * phrase_index,
                  TokenVector tokens){
     bool retval = false;
@@ -123,21 +123,21 @@ int main(int argc, char * argv[]){
     chunk->load("pinyin_index.bin");
     largetable.load(options, chunk, NULL);
 
+    FacadePhraseTable2 phrase_table;
+    chunk = new MemoryChunk;
+    chunk->load("phrase_index.bin");
+    phrase_table.load(chunk, NULL);
+
     FacadePhraseIndex phrase_index;
     if (!load_phrase_index(&phrase_index))
         exit(ENOENT);
-
-    FacadePhraseTable phrases;
-    chunk = new MemoryChunk;
-    chunk->load("phrase_index.bin");
-    phrases.load(chunk, NULL);
 
     Bigram system_bigram;
     system_bigram.attach("bigram.db", ATTACH_READONLY);
     Bigram user_bigram;
     user_bigram.attach(NULL, ATTACH_CREATE|ATTACH_READWRITE);
 
-    PinyinLookup pinyin_lookup(options, &largetable, &phrase_index,
+    PinyinLookup2 pinyin_lookup(options, &largetable, &phrase_index,
                                &system_bigram, &user_bigram);
 
     /* open evals.text. */
@@ -147,12 +147,16 @@ int main(int argc, char * argv[]){
         exit(ENOENT);
     }
 
+    PhraseTokens phrase_tokens;
+    memset(phrase_tokens, 0, sizeof(PhraseTokens));
+    phrase_index.prepare_tokens(phrase_tokens);
+
     /* Evaluates the correction rate of test text documents. */
     size_t tested_count = 0; size_t passed_count = 0;
     char* linebuf = NULL; size_t size = 0;
     TokenVector tokens = g_array_new(FALSE, TRUE, sizeof(phrase_token_t));
 
-    phrase_token_t token;
+    phrase_token_t token = null_token;
     while( getline(&linebuf, &size, evals_file) ) {
         if ( feof(evals_file) )
             break;
@@ -162,16 +166,19 @@ int main(int argc, char * argv[]){
         glong phrase_len = 0;
         ucs4_t * phrase = g_utf8_to_ucs4(linebuf, -1, NULL, &phrase_len, NULL);
 
-        token = 0;
+        token = null_token;
         if ( 0 != phrase_len ) {
-            int result = phrases.search( phrase_len, phrase, token);
-            if ( ! (result & SEARCH_OK) )
-                token = 0;
+            int result = phrase_table.search(phrase_len, phrase, phrase_tokens);
+            int num = get_first_token(phrase_tokens, token);
+
+            if ( !(result & SEARCH_OK) )
+                token = null_token;
+
             g_free(phrase);
             phrase = NULL;
         }
 
-        if ( 0 == token ) {
+        if ( null_token == token ) {
             if ( tokens->len ) { /* one test. */
                 if ( do_one_test(&pinyin_lookup, &phrase_index, tokens) ) {
                     tested_count ++; passed_count ++;
@@ -199,6 +206,8 @@ int main(int argc, char * argv[]){
     g_array_free(tokens, TRUE);
     fclose(evals_file);
     free(linebuf);
+
+    phrase_index.destroy_tokens(phrase_tokens);
 
     return 0;
 }

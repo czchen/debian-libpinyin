@@ -23,13 +23,13 @@ libpinyinincludedir	= $(includedir)/libpinyin-@VERSION@
 
 libpinyininclude_HEADERS= chewing_enum.h \
 			  chewing_key.h \
-			  pinyin_custom2.h \
-			  pinyin_parser2.h
+			  pinyin_custom2.h
 
 
-noinst_HEADERS		= phrase_index.h \
+noinst_HEADERS		= pinyin_parser2.h \
+			  phrase_index.h \
 			  phrase_index_logger.h \
-			  phrase_large_table.h \
+			  phrase_large_table2.h \
 			  ngram.h \
 			  flexible_ngram.h \
 			  tag_utility.h \
@@ -39,7 +39,7 @@ noinst_HEADERS		= phrase_index.h \
 			  pinyin_phrase2.h \
 			  chewing_large_table.h \
 			  facade_chewing_table.h \
-			  facade_phrase_table.h
+			  facade_phrase_table2.h
 
 
 noinst_LTLIBRARIES      = libstorage.la
@@ -49,7 +49,7 @@ libstorage_la_CXXFLAGS	= "-fPIC"
 libstorage_la_LDFLAGS	= -static
 
 libstorage_la_SOURCES    = phrase_index.cpp \
-			   phrase_large_table.cpp \
+			   phrase_large_table2.cpp \
 			   ngram.cpp \
 			   tag_utility.cpp \
 			   pinyin_parser2.cpp \

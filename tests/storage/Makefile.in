@@ -54,6 +54,9 @@ PROGRAMS = $(noinst_PROGRAMS)
 am_test_chewing_table_OBJECTS = test_chewing_table.$(OBJEXT)
 test_chewing_table_OBJECTS = $(am_test_chewing_table_OBJECTS)
 test_chewing_table_DEPENDENCIES = ../../src/libpinyin_internal.la
+AM_V_lt = $(am__v_lt_@AM_V@)
+am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
+am__v_lt_0 = --silent
 am_test_flexible_ngram_OBJECTS = test_flexible_ngram.$(OBJEXT)
 test_flexible_ngram_OBJECTS = $(am_test_flexible_ngram_OBJECTS)
 test_flexible_ngram_DEPENDENCIES = ../../src/libpinyin_internal.la
@@ -81,13 +84,26 @@ am__depfiles_maybe = depfiles
 am__mv = mv -f
 CXXCOMPILE = $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
 	$(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS)
-LTCXXCOMPILE = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
-	--mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
-	$(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS)
+LTCXXCOMPILE = $(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) \
+	$(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) \
+	$(AM_CXXFLAGS) $(CXXFLAGS)
+AM_V_CXX = $(am__v_CXX_@AM_V@)
+am__v_CXX_ = $(am__v_CXX_@AM_DEFAULT_V@)
+am__v_CXX_0 = @echo "  CXX   " $@;
+AM_V_at = $(am__v_at_@AM_V@)
+am__v_at_ = $(am__v_at_@AM_DEFAULT_V@)
+am__v_at_0 = @
 CXXLD = $(CXX)
-CXXLINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
-	--mode=link $(CXXLD) $(AM_CXXFLAGS) $(CXXFLAGS) $(AM_LDFLAGS) \
-	$(LDFLAGS) -o $@
+CXXLINK = $(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CXXLD) $(AM_CXXFLAGS) \
+	$(CXXFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
+AM_V_CXXLD = $(am__v_CXXLD_@AM_V@)
+am__v_CXXLD_ = $(am__v_CXXLD_@AM_DEFAULT_V@)
+am__v_CXXLD_0 = @echo "  CXXLD " $@;
+AM_V_GEN = $(am__v_GEN_@AM_V@)
+am__v_GEN_ = $(am__v_GEN_@AM_DEFAULT_V@)
+am__v_GEN_0 = @echo "  GEN   " $@;
 SOURCES = $(test_chewing_table_SOURCES) $(test_flexible_ngram_SOURCES) \
 	$(test_ngram_SOURCES) $(test_parser2_SOURCES) \
 	$(test_phrase_index_SOURCES) \
@@ -105,6 +121,7 @@ red=; grn=; lgn=; blu=; std=
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 ACLOCAL = @ACLOCAL@
 AMTAR = @AMTAR@
+AM_DEFAULT_VERBOSITY = @AM_DEFAULT_VERBOSITY@
 AR = @AR@
 ARGZ_H = @ARGZ_H@
 AS = @AS@
@@ -320,25 +337,25 @@ clean-noinstPROGRAMS:
 	rm -f $$list
 test_chewing_table$(EXEEXT): $(test_chewing_table_OBJECTS) $(test_chewing_table_DEPENDENCIES) $(EXTRA_test_chewing_table_DEPENDENCIES) 
 	@rm -f test_chewing_table$(EXEEXT)
-	$(CXXLINK) $(test_chewing_table_OBJECTS) $(test_chewing_table_LDADD) $(LIBS)
+	$(AM_V_CXXLD)$(CXXLINK) $(test_chewing_table_OBJECTS) $(test_chewing_table_LDADD) $(LIBS)
 test_flexible_ngram$(EXEEXT): $(test_flexible_ngram_OBJECTS) $(test_flexible_ngram_DEPENDENCIES) $(EXTRA_test_flexible_ngram_DEPENDENCIES) 
 	@rm -f test_flexible_ngram$(EXEEXT)
-	$(CXXLINK) $(test_flexible_ngram_OBJECTS) $(test_flexible_ngram_LDADD) $(LIBS)
+	$(AM_V_CXXLD)$(CXXLINK) $(test_flexible_ngram_OBJECTS) $(test_flexible_ngram_LDADD) $(LIBS)
 test_ngram$(EXEEXT): $(test_ngram_OBJECTS) $(test_ngram_DEPENDENCIES) $(EXTRA_test_ngram_DEPENDENCIES) 
 	@rm -f test_ngram$(EXEEXT)
-	$(CXXLINK) $(test_ngram_OBJECTS) $(test_ngram_LDADD) $(LIBS)
+	$(AM_V_CXXLD)$(CXXLINK) $(test_ngram_OBJECTS) $(test_ngram_LDADD) $(LIBS)
 test_parser2$(EXEEXT): $(test_parser2_OBJECTS) $(test_parser2_DEPENDENCIES) $(EXTRA_test_parser2_DEPENDENCIES) 
 	@rm -f test_parser2$(EXEEXT)
-	$(CXXLINK) $(test_parser2_OBJECTS) $(test_parser2_LDADD) $(LIBS)
+	$(AM_V_CXXLD)$(CXXLINK) $(test_parser2_OBJECTS) $(test_parser2_LDADD) $(LIBS)
 test_phrase_index$(EXEEXT): $(test_phrase_index_OBJECTS) $(test_phrase_index_DEPENDENCIES) $(EXTRA_test_phrase_index_DEPENDENCIES) 
 	@rm -f test_phrase_index$(EXEEXT)
-	$(CXXLINK) $(test_phrase_index_OBJECTS) $(test_phrase_index_LDADD) $(LIBS)
+	$(AM_V_CXXLD)$(CXXLINK) $(test_phrase_index_OBJECTS) $(test_phrase_index_LDADD) $(LIBS)
 test_phrase_index_logger$(EXEEXT): $(test_phrase_index_logger_OBJECTS) $(test_phrase_index_logger_DEPENDENCIES) $(EXTRA_test_phrase_index_logger_DEPENDENCIES) 
 	@rm -f test_phrase_index_logger$(EXEEXT)
-	$(CXXLINK) $(test_phrase_index_logger_OBJECTS) $(test_phrase_index_logger_LDADD) $(LIBS)
+	$(AM_V_CXXLD)$(CXXLINK) $(test_phrase_index_logger_OBJECTS) $(test_phrase_index_logger_LDADD) $(LIBS)
 test_phrase_table$(EXEEXT): $(test_phrase_table_OBJECTS) $(test_phrase_table_DEPENDENCIES) $(EXTRA_test_phrase_table_DEPENDENCIES) 
 	@rm -f test_phrase_table$(EXEEXT)
-	$(CXXLINK) $(test_phrase_table_OBJECTS) $(test_phrase_table_LDADD) $(LIBS)
+	$(AM_V_CXXLD)$(CXXLINK) $(test_phrase_table_OBJECTS) $(test_phrase_table_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -355,25 +372,25 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_phrase_table.Po@am__quote@
 
 .cpp.o:
-@am__fastdepCXX_TRUE@	$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXXCOMPILE) -c -o $@ $<
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXXCOMPILE) -c -o $@ $<
 
 .cpp.obj:
-@am__fastdepCXX_TRUE@	$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ `$(CYGPATH_W) '$<'`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ `$(CYGPATH_W) '$<'`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXXCOMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXXCOMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
 
 .cpp.lo:
-@am__fastdepCXX_TRUE@	$(LTCXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Plo
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(LTCXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Plo
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(LTCXXCOMPILE) -c -o $@ $<
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(LTCXXCOMPILE) -c -o $@ $<
 
 mostlyclean-libtool:
 	-rm -f *.lo

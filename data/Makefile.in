@@ -44,6 +44,12 @@ mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/config.h
 CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
+AM_V_GEN = $(am__v_GEN_@AM_V@)
+am__v_GEN_ = $(am__v_GEN_@AM_DEFAULT_V@)
+am__v_GEN_0 = @echo "  GEN   " $@;
+AM_V_at = $(am__v_at_@AM_V@)
+am__v_at_ = $(am__v_at_@AM_DEFAULT_V@)
+am__v_at_0 = @
 SOURCES =
 DIST_SOURCES =
 am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
@@ -78,6 +84,7 @@ DATA = $(libpinyin_db_DATA)
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 ACLOCAL = @ACLOCAL@
 AMTAR = @AMTAR@
+AM_DEFAULT_VERBOSITY = @AM_DEFAULT_VERBOSITY@
 AR = @AR@
 ARGZ_H = @ARGZ_H@
 AS = @AS@
@@ -451,7 +458,7 @@ uninstall-am: uninstall-libpinyin_dbDATA
 
 interpolation.text:
 	wget https://github.com/downloads/libpinyin/libpinyin/model.text.tar.gz
-	tar xvf model.text.tar.gz
+	tar xvf model.text.tar.gz -C $(top_srcdir)/data
 
 gb_char.table gbk_char.table: interpolation.text
 

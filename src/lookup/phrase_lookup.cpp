@@ -23,14 +23,55 @@
 #include "stl_lite.h"
 #include "novel_types.h"
 #include "phrase_index.h"
-#include "facade_phrase_table.h"
+#include "facade_phrase_table2.h"
 #include "ngram.h"
 #include "phrase_lookup.h"
 
 using namespace pinyin;
 
+
 const gfloat PhraseLookup::bigram_lambda = LAMBDA_PARAMETER;
 const gfloat PhraseLookup::unigram_lambda = 1 - LAMBDA_PARAMETER;
+
+
+static bool populate_prefixes(GPtrArray * steps_index,
+                              GPtrArray * steps_content) {
+
+    lookup_key_t initial_key = sentence_start;
+    lookup_value_t initial_value(log(1));
+    initial_value.m_handles[1] = sentence_start;
+
+    LookupStepContent initial_step_content = (LookupStepContent)
+        g_ptr_array_index(steps_content, 0);
+    g_array_append_val(initial_step_content, initial_value);
+
+    LookupStepIndex initial_step_index = (LookupStepIndex)
+        g_ptr_array_index(steps_index, 0);
+    g_hash_table_insert(initial_step_index, GUINT_TO_POINTER(initial_key),
+                        GUINT_TO_POINTER(initial_step_content->len - 1));
+
+    return true;
+}
+
+static bool init_steps(GPtrArray * steps_index,
+                       GPtrArray * steps_content,
+                       int nstep) {
+
+    /* add null start step */
+    g_ptr_array_set_size(steps_index, nstep);
+    g_ptr_array_set_size(steps_content, nstep);
+
+    for ( int i = 0; i < nstep; ++i ){
+        /* initialize steps_index */
+        g_ptr_array_index(steps_index, i) = g_hash_table_new
+            (g_direct_hash, g_direct_equal);
+        /* initialize steps_content */
+        g_ptr_array_index(steps_content, i) = g_array_new
+            (FALSE, FALSE, sizeof(lookup_value_t));
+    }
+
+    return true;
+}
 
 static void clear_steps(GPtrArray * steps_index,
                         GPtrArray * steps_content){
@@ -49,7 +90,7 @@ static void clear_steps(GPtrArray * steps_index,
     }
 }
 
-PhraseLookup::PhraseLookup(FacadePhraseTable * phrase_table,
+PhraseLookup::PhraseLookup(FacadePhraseTable2 * phrase_table,
                            FacadePhraseIndex * phrase_index,
                            Bigram * system_bigram,
                            Bigram * user_bigram){
@@ -76,44 +117,53 @@ bool PhraseLookup::get_best_match(int sentence_length, ucs4_t sentence[],
 
     clear_steps(m_steps_index, m_steps_content);
 
-    //add null start step
-    g_ptr_array_set_size(m_steps_index, nstep);
-    g_ptr_array_set_size(m_steps_content, nstep);
+    init_steps(m_steps_index, m_steps_content, nstep);
 
-    for ( int i = 0; i < nstep; ++i ){
-        //initialize m_steps_index
-        g_ptr_array_index(m_steps_index, i) = g_hash_table_new(g_direct_hash, g_direct_equal);
-        //initialize m_steps_content
-        g_ptr_array_index(m_steps_content, i) = g_array_new(FALSE, FALSE, sizeof(lookup_value_t));
-    }
+    populate_prefixes(m_steps_index, m_steps_content);
 
-    lookup_key_t initial_key = sentence_start;
-    lookup_value_t initial_value(log(1));
-    initial_value.m_handles[1] = sentence_start;
-    GArray * initial_step_content = (GArray *) g_ptr_array_index(m_steps_content, 0);
-    initial_step_content = g_array_append_val(initial_step_content, initial_value);
-    GHashTable * initial_step_index = (GHashTable *) g_ptr_array_index(m_steps_index, 0);
-    g_hash_table_insert(initial_step_index, GUINT_TO_POINTER(initial_key), GUINT_TO_POINTER(initial_step_content->len - 1));
+    PhraseTokens tokens;
+    memset(tokens, 0, sizeof(PhraseTokens));
+    m_phrase_index->prepare_tokens(tokens);
 
     for ( int i = 0; i < nstep - 1; ++i ){
         for ( int m = i + 1; m < nstep; ++m ){
-            phrase_token_t next_token = null_token;
-            int result = m_phrase_table->search(m - i, sentence + i, next_token);
+
+            /* do one phrase table search. */
+            int result = m_phrase_table->search(m - i, sentence + i, tokens);
+
             /* found next phrase */
             if ( result & SEARCH_OK ) {
-                search_bigram(i, next_token),
-                    search_unigram(i, next_token);
+                /* iterate every token. */
+                for (size_t n = 0; n < PHRASE_INDEX_LIBRARY_COUNT; ++n) {
+                    GArray * array = tokens[n];
+                    if (NULL == array)
+                        continue;
+
+                    /* just skip the loop when the length is zero. */
+                    for (size_t k = 0; k < array->len; ++k) {
+                        phrase_token_t next_token =
+                            g_array_index(array, phrase_token_t, k);
+                        search_bigram(i, next_token),
+                            search_unigram(i, next_token);
+                    }
+                }
             }
+
             /* no longer phrase */
             if (!(result & SEARCH_CONTINUED))
                 break;
         }
     }
+
+    m_phrase_index->destroy_tokens(tokens);
+
     return final_step(results);
 }
 
 bool PhraseLookup::search_unigram(int nstep, phrase_token_t token){
-    GArray * lookup_content = (GArray *) g_ptr_array_index(m_steps_content, nstep);
+
+    LookupStepContent lookup_content = (LookupStepContent)
+        g_ptr_array_index(m_steps_content, nstep);
     if ( 0 == lookup_content->len )
         return false;
 
@@ -130,7 +180,9 @@ bool PhraseLookup::search_unigram(int nstep, phrase_token_t token){
 
 bool PhraseLookup::search_bigram(int nstep, phrase_token_t token){
     bool found = false;
-    GArray * lookup_content = (GArray *) g_ptr_array_index(m_steps_content, nstep);
+
+    LookupStepContent lookup_content = (LookupStepContent)
+        g_ptr_array_index(m_steps_content, nstep);
     if ( 0 == lookup_content->len )
         return false;
 
@@ -163,8 +215,10 @@ bool PhraseLookup::search_bigram(int nstep, phrase_token_t token){
 
 bool PhraseLookup::unigram_gen_next_step(int nstep, lookup_value_t * cur_value,
 phrase_token_t token){
-    if ( m_phrase_index->get_phrase_item(token, m_cache_phrase_item))
+
+    if (m_phrase_index->get_phrase_item(token, m_cache_phrase_item))
         return false;
+
     size_t phrase_length = m_cache_phrase_item.get_phrase_length();
     gdouble elem_poss = m_cache_phrase_item.get_unigram_frequency() / (gdouble)
         m_phrase_index->get_phrase_index_total_freq();
@@ -180,8 +234,10 @@ phrase_token_t token){
 }
 
 bool PhraseLookup::bigram_gen_next_step(int nstep, lookup_value_t * cur_value, phrase_token_t token, gfloat bigram_poss){
+
     if ( m_phrase_index->get_phrase_item(token, m_cache_phrase_item))
         return false;
+
     size_t phrase_length = m_cache_phrase_item.get_phrase_length();
     gdouble unigram_poss = m_cache_phrase_item.get_unigram_frequency() /
         (gdouble) m_phrase_index->get_phrase_index_total_freq();
@@ -199,19 +255,28 @@ bool PhraseLookup::bigram_gen_next_step(int nstep, lookup_value_t * cur_value, p
 }
 
 bool PhraseLookup::save_next_step(int next_step_pos, lookup_value_t * cur_value, lookup_value_t * next_value){
-    lookup_key_t next_key = next_value->m_handles[1];
-    GHashTable * next_lookup_index = (GHashTable *) g_ptr_array_index(m_steps_index, next_step_pos);
-    GArray * next_lookup_content = (GArray *) g_ptr_array_index(m_steps_content, next_step_pos);
 
-    gpointer key, value;
-    gboolean lookup_result = g_hash_table_lookup_extended(next_lookup_index, GUINT_TO_POINTER(next_key), &key, &value);
-    size_t step_index = GPOINTER_TO_UINT(value);
-    if ( !lookup_result ){
+    LookupStepIndex next_lookup_index = (LookupStepIndex)
+        g_ptr_array_index(m_steps_index, next_step_pos);
+    LookupStepContent next_lookup_content = (LookupStepContent)
+        g_ptr_array_index(m_steps_content, next_step_pos);
+
+    lookup_key_t next_key = next_value->m_handles[1];
+
+    gpointer key = NULL, value = NULL;
+    gboolean lookup_result = g_hash_table_lookup_extended
+        (next_lookup_index, GUINT_TO_POINTER(next_key), &key, &value);
+
+    if (!lookup_result){
         g_array_append_val(next_lookup_content, *next_value);
-        g_hash_table_insert(next_lookup_index, GUINT_TO_POINTER(next_key), GUINT_TO_POINTER(next_lookup_content->len - 1));
+        g_hash_table_insert(next_lookup_index, GUINT_TO_POINTER(next_key),
+                            GUINT_TO_POINTER(next_lookup_content->len - 1));
         return true;
     }else{
-        lookup_value_t * orig_next_value = &g_array_index(next_lookup_content, lookup_value_t, step_index);
+        size_t step_index = GPOINTER_TO_UINT(value);
+        lookup_value_t * orig_next_value = &g_array_index
+            (next_lookup_content, lookup_value_t, step_index);
+
         if ( orig_next_value->m_poss < next_value->m_poss ){
             orig_next_value->m_handles[0] = next_value->m_handles[0];
             assert(orig_next_value->m_handles[1] == next_value->m_handles[1]);
@@ -224,45 +289,55 @@ bool PhraseLookup::save_next_step(int next_step_pos, lookup_value_t * cur_value,
 }
 
 bool PhraseLookup::final_step(MatchResults & results ){
-    //reset results
-    g_array_set_size(results, m_steps_content->len);
+
+    /* reset results */
+    g_array_set_size(results, m_steps_content->len - 1);
     for ( size_t i = 0; i < results->len; ++i ){
         phrase_token_t * token = &g_array_index(results, phrase_token_t, i);
         *token = null_token;
     }
 
-    //find max element
+    /* find max element */
     size_t last_step_pos = m_steps_content->len - 1;
-    GArray * last_step_content =  (GArray *) g_ptr_array_index(m_steps_content, last_step_pos);
+    LookupStepContent last_step_content =  (LookupStepContent) g_ptr_array_index
+        (m_steps_content, last_step_pos);
     if ( last_step_content->len == 0 )
         return false;
 
-    lookup_value_t * max_value = &g_array_index(last_step_content, lookup_value_t, 0);
+    lookup_value_t * max_value = &g_array_index
+        (last_step_content, lookup_value_t, 0);
     for ( size_t i = 1; i < last_step_content->len; ++i ){
-        lookup_value_t * cur_value = &g_array_index(last_step_content, lookup_value_t, i);
+        lookup_value_t * cur_value = &g_array_index
+            (last_step_content, lookup_value_t, i);
         if ( cur_value->m_poss > max_value->m_poss )
             max_value = cur_value;
     }
 
-    //backtracing
+    /* backtracing */
     while( true ){
         int cur_step_pos = max_value->m_last_step;
         if ( -1 == cur_step_pos )
             break;
 
-        phrase_token_t * token = &g_array_index(results, phrase_token_t, cur_step_pos);
+        phrase_token_t * token = &g_array_index
+            (results, phrase_token_t, cur_step_pos);
         *token = max_value->m_handles[1];
 
         phrase_token_t last_token = max_value->m_handles[0];
-        GHashTable * lookup_step_index = (GHashTable *) g_ptr_array_index(m_steps_index, cur_step_pos);
-        gpointer key, value;
-        gboolean result = g_hash_table_lookup_extended(lookup_step_index, GUINT_TO_POINTER(last_token), &key, &value);
+        LookupStepIndex lookup_step_index = (LookupStepIndex) g_ptr_array_index(m_steps_index, cur_step_pos);
+
+        gpointer key = NULL, value = NULL;
+        gboolean result = g_hash_table_lookup_extended
+            (lookup_step_index, GUINT_TO_POINTER(last_token), &key, &value);
         if ( !result )
             return false;
-        GArray * lookup_step_content = (GArray *) g_ptr_array_index(m_steps_content, cur_step_pos);
-        max_value = &g_array_index(lookup_step_content, lookup_value_t, GPOINTER_TO_UINT(value));
+
+        LookupStepContent lookup_step_content = (LookupStepContent)
+            g_ptr_array_index(m_steps_content, cur_step_pos);
+        max_value = &g_array_index
+            (lookup_step_content, lookup_value_t, GPOINTER_TO_UINT(value));
     }
 
-    //no need to reverse the result
+    /* no need to reverse the result */
     return true;
 }

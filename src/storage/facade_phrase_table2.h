@@ -2,7 +2,7 @@
  *  libpinyin
  *  Library to deal with pinyin.
  *  
- *  Copyright (C) 2011 Peng Wu <alexepico@gmail.com>
+ *  Copyright (C) 2012 Peng Wu <alexepico@gmail.com>
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,39 +19,39 @@
  *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-#ifndef FACADE_PHRASE_TABLE_H
-#define FACADE_PHRASE_TABLE_H
+#ifndef FACADE_PHRASE_TABLE2_H
+#define FACADE_PHRASE_TABLE2_H
 
-#include "phrase_large_table.h"
+#include "phrase_large_table2.h"
 
 namespace pinyin{
 
 /**
- * FacadePhraseTable:
+ * FacadePhraseTable2:
  *
- * The facade class of phrase large table.
+ * The facade class of phrase large table2.
  *
  */
 
-class FacadePhraseTable{
+class FacadePhraseTable2{
 private:
-    PhraseLargeTable * m_system_phrase_table;
-    PhraseLargeTable * m_user_phrase_table;
+    PhraseLargeTable2 * m_system_phrase_table;
+    PhraseLargeTable2 * m_user_phrase_table;
 
 public:
     /**
-     * FacadePhraseTable::FacadePhraseTable:
+     * FacadePhraseTable2::FacadePhraseTable2:
      *
-     * The constructor of the FacadePhraseTable.
+     * The constructor of the FacadePhraseTable2.
      *
      */
-    FacadePhraseTable() {
+    FacadePhraseTable2() {
         m_system_phrase_table = NULL;
         m_user_phrase_table = NULL;
     }
 
     /**
-     * FacadePhraseTable::load:
+     * FacadePhraseTable2::load:
      * @system: the memory chunk of the system phrase table.
      * @user: the memory chunk of the user phrase table.
      * @returns: whether the load operation is successful.
@@ -62,18 +62,18 @@ public:
     bool load(MemoryChunk * system, MemoryChunk * user) {
         bool result = false;
         if (system) {
-            m_system_phrase_table = new PhraseLargeTable;
+            m_system_phrase_table = new PhraseLargeTable2;
             result = m_system_phrase_table->load(system) || result;
         }
         if (user) {
-            m_user_phrase_table = new PhraseLargeTable;
+            m_user_phrase_table = new PhraseLargeTable2;
             result = m_user_phrase_table->load(user) || result;
         }
         return result;
     }
 
     /**
-     * FacadePhraseTable::store:
+     * FacadePhraseTable2::store:
      * @new_user: the memory chunk to store the user phrase table.
      * @returns: whether the store operation is successful.
      *
@@ -87,60 +87,68 @@ public:
     }
 
     /**
-     * FacadePhraseTable::search:
+     * FacadePhraseTable2::search:
      * @phrase_length: the length of the phrase to be searched.
      * @phrase: the ucs4 characters of the phrase to be searched.
-     * @token: the token to store the matched phrase.
+     * @tokens: the GArray of tokens to store the matched phrases.
      * @returns: the search result of enum SearchResult.
      *
-     * Search the phrase token according to the ucs4 characters.
+     * Search the phrase tokens according to the ucs4 characters.
      *
      */
     int search(int phrase_length, /* in */ ucs4_t phrase[],
-               /* out */ phrase_token_t & token){
+               /* out */ PhraseTokens tokens) const {
+        /* clear tokens. */
+        for (size_t i = 0; i < PHRASE_INDEX_LIBRARY_COUNT; ++i) {
+            if (tokens[i])
+                g_array_set_size(tokens[i], 0);
+        }
+
         int result = SEARCH_NONE;
-        token = null_token;
 
         if (NULL != m_system_phrase_table)
             result |= m_system_phrase_table->search
-                (phrase_length, phrase, token);
+                (phrase_length, phrase, tokens);
 
         if (NULL != m_user_phrase_table)
             result |= m_user_phrase_table->search
-                (phrase_length, phrase, token);
+                (phrase_length, phrase, tokens);
+
         return result;
     }
 
     /**
-     * FacadePhraseTable::add_index:
+     * FacadePhraseTable2::add_index:
      * @phrase_length: the length of the phrase to be added.
      * @phrase: the ucs4 characters of the phrase to be added.
      * @token: the token of the phrase to be added.
-     * @returns: the add result of enum AddIndexResult.
+     * @returns: the add result of enum ErrorResult.
      *
      * Add the phrase token to the user phrase table.
      *
      */
     int add_index(int phrase_length, /* in */ ucs4_t phrase[],
                   /* in */ phrase_token_t token) {
-        assert(NULL != m_user_phrase_table);
+        if (NULL == m_user_phrase_table)
+            return false;
         return m_user_phrase_table->add_index
             (phrase_length, phrase, token);
     }
 
     /**
-     * FacadePhraseTable::remove_index:
+     * FacadePhraseTable2::remove_index:
      * @phrase_length: the length of the phrase to be removed.
      * @phrase: the ucs4 characters of the phrase to be removed.
      * @token: the token of the phrase to be removed.
-     * @returns: the remove result of enum RemoveIndexResult.
+     * @returns: the remove result of enum ErrorResult.
      *
      * Remove the phrase token from the user phrase table.
      *
      */
     int remove_index(int phrase_length, /* in */ ucs4_t phrase[],
-                     /* out */ phrase_token_t & token){
-        assert(NULL != m_user_phrase_table);
+                     /* in */ phrase_token_t token) {
+        if (NULL == m_user_phrase_table)
+            return false;
         return m_user_phrase_table->remove_index
             (phrase_length, phrase, token);
     }

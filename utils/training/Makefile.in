@@ -61,6 +61,9 @@ PROGRAMS = $(bin_PROGRAMS) $(noinst_PROGRAMS)
 am_estimate_interpolation_OBJECTS = estimate_interpolation.$(OBJEXT)
 estimate_interpolation_OBJECTS = $(am_estimate_interpolation_OBJECTS)
 estimate_interpolation_DEPENDENCIES = ../../src/libpinyin_internal.la
+AM_V_lt = $(am__v_lt_@AM_V@)
+am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
+am__v_lt_0 = --silent
 am_estimate_k_mixture_model_OBJECTS =  \
 	estimate_k_mixture_model.$(OBJEXT)
 estimate_k_mixture_model_OBJECTS =  \
@@ -112,13 +115,26 @@ am__depfiles_maybe = depfiles
 am__mv = mv -f
 CXXCOMPILE = $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
 	$(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS)
-LTCXXCOMPILE = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
-	--mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
-	$(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS)
+LTCXXCOMPILE = $(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) \
+	$(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) \
+	$(AM_CXXFLAGS) $(CXXFLAGS)
+AM_V_CXX = $(am__v_CXX_@AM_V@)
+am__v_CXX_ = $(am__v_CXX_@AM_DEFAULT_V@)
+am__v_CXX_0 = @echo "  CXX   " $@;
+AM_V_at = $(am__v_at_@AM_V@)
+am__v_at_ = $(am__v_at_@AM_DEFAULT_V@)
+am__v_at_0 = @
 CXXLD = $(CXX)
-CXXLINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
-	--mode=link $(CXXLD) $(AM_CXXFLAGS) $(CXXFLAGS) $(AM_LDFLAGS) \
-	$(LDFLAGS) -o $@
+CXXLINK = $(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CXXLD) $(AM_CXXFLAGS) \
+	$(CXXFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
+AM_V_CXXLD = $(am__v_CXXLD_@AM_V@)
+am__v_CXXLD_ = $(am__v_CXXLD_@AM_DEFAULT_V@)
+am__v_CXXLD_0 = @echo "  CXXLD " $@;
+AM_V_GEN = $(am__v_GEN_@AM_V@)
+am__v_GEN_ = $(am__v_GEN_@AM_DEFAULT_V@)
+am__v_GEN_0 = @echo "  GEN   " $@;
 SOURCES = $(estimate_interpolation_SOURCES) \
 	$(estimate_k_mixture_model_SOURCES) \
 	$(eval_correction_rate_SOURCES) \
@@ -145,6 +161,7 @@ CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 ACLOCAL = @ACLOCAL@
 AMTAR = @AMTAR@
+AM_DEFAULT_VERBOSITY = @AM_DEFAULT_VERBOSITY@
 AR = @AR@
 ARGZ_H = @ARGZ_H@
 AS = @AS@
@@ -419,43 +436,43 @@ clean-noinstPROGRAMS:
 	rm -f $$list
 estimate_interpolation$(EXEEXT): $(estimate_interpolation_OBJECTS) $(estimate_interpolation_DEPENDENCIES) $(EXTRA_estimate_interpolation_DEPENDENCIES) 
 	@rm -f estimate_interpolation$(EXEEXT)
-	$(CXXLINK) $(estimate_interpolation_OBJECTS) $(estimate_interpolation_LDADD) $(LIBS)
+	$(AM_V_CXXLD)$(CXXLINK) $(estimate_interpolation_OBJECTS) $(estimate_interpolation_LDADD) $(LIBS)
 estimate_k_mixture_model$(EXEEXT): $(estimate_k_mixture_model_OBJECTS) $(estimate_k_mixture_model_DEPENDENCIES) $(EXTRA_estimate_k_mixture_model_DEPENDENCIES) 
 	@rm -f estimate_k_mixture_model$(EXEEXT)
-	$(CXXLINK) $(estimate_k_mixture_model_OBJECTS) $(estimate_k_mixture_model_LDADD) $(LIBS)
+	$(AM_V_CXXLD)$(CXXLINK) $(estimate_k_mixture_model_OBJECTS) $(estimate_k_mixture_model_LDADD) $(LIBS)
 eval_correction_rate$(EXEEXT): $(eval_correction_rate_OBJECTS) $(eval_correction_rate_DEPENDENCIES) $(EXTRA_eval_correction_rate_DEPENDENCIES) 
 	@rm -f eval_correction_rate$(EXEEXT)
-	$(CXXLINK) $(eval_correction_rate_OBJECTS) $(eval_correction_rate_LDADD) $(LIBS)
+	$(AM_V_CXXLD)$(CXXLINK) $(eval_correction_rate_OBJECTS) $(eval_correction_rate_LDADD) $(LIBS)
 export_k_mixture_model$(EXEEXT): $(export_k_mixture_model_OBJECTS) $(export_k_mixture_model_DEPENDENCIES) $(EXTRA_export_k_mixture_model_DEPENDENCIES) 
 	@rm -f export_k_mixture_model$(EXEEXT)
-	$(CXXLINK) $(export_k_mixture_model_OBJECTS) $(export_k_mixture_model_LDADD) $(LIBS)
+	$(AM_V_CXXLD)$(CXXLINK) $(export_k_mixture_model_OBJECTS) $(export_k_mixture_model_LDADD) $(LIBS)
 gen_deleted_ngram$(EXEEXT): $(gen_deleted_ngram_OBJECTS) $(gen_deleted_ngram_DEPENDENCIES) $(EXTRA_gen_deleted_ngram_DEPENDENCIES) 
 	@rm -f gen_deleted_ngram$(EXEEXT)
-	$(CXXLINK) $(gen_deleted_ngram_OBJECTS) $(gen_deleted_ngram_LDADD) $(LIBS)
+	$(AM_V_CXXLD)$(CXXLINK) $(gen_deleted_ngram_OBJECTS) $(gen_deleted_ngram_LDADD) $(LIBS)
 gen_k_mixture_model$(EXEEXT): $(gen_k_mixture_model_OBJECTS) $(gen_k_mixture_model_DEPENDENCIES) $(EXTRA_gen_k_mixture_model_DEPENDENCIES) 
 	@rm -f gen_k_mixture_model$(EXEEXT)
-	$(CXXLINK) $(gen_k_mixture_model_OBJECTS) $(gen_k_mixture_model_LDADD) $(LIBS)
+	$(AM_V_CXXLD)$(CXXLINK) $(gen_k_mixture_model_OBJECTS) $(gen_k_mixture_model_LDADD) $(LIBS)
 gen_ngram$(EXEEXT): $(gen_ngram_OBJECTS) $(gen_ngram_DEPENDENCIES) $(EXTRA_gen_ngram_DEPENDENCIES) 
 	@rm -f gen_ngram$(EXEEXT)
-	$(CXXLINK) $(gen_ngram_OBJECTS) $(gen_ngram_LDADD) $(LIBS)
+	$(AM_V_CXXLD)$(CXXLINK) $(gen_ngram_OBJECTS) $(gen_ngram_LDADD) $(LIBS)
 gen_unigram$(EXEEXT): $(gen_unigram_OBJECTS) $(gen_unigram_DEPENDENCIES) $(EXTRA_gen_unigram_DEPENDENCIES) 
 	@rm -f gen_unigram$(EXEEXT)
-	$(CXXLINK) $(gen_unigram_OBJECTS) $(gen_unigram_LDADD) $(LIBS)
+	$(AM_V_CXXLD)$(CXXLINK) $(gen_unigram_OBJECTS) $(gen_unigram_LDADD) $(LIBS)
 import_k_mixture_model$(EXEEXT): $(import_k_mixture_model_OBJECTS) $(import_k_mixture_model_DEPENDENCIES) $(EXTRA_import_k_mixture_model_DEPENDENCIES) 
 	@rm -f import_k_mixture_model$(EXEEXT)
-	$(CXXLINK) $(import_k_mixture_model_OBJECTS) $(import_k_mixture_model_LDADD) $(LIBS)
+	$(AM_V_CXXLD)$(CXXLINK) $(import_k_mixture_model_OBJECTS) $(import_k_mixture_model_LDADD) $(LIBS)
 k_mixture_model_to_interpolation$(EXEEXT): $(k_mixture_model_to_interpolation_OBJECTS) $(k_mixture_model_to_interpolation_DEPENDENCIES) $(EXTRA_k_mixture_model_to_interpolation_DEPENDENCIES) 
 	@rm -f k_mixture_model_to_interpolation$(EXEEXT)
-	$(CXXLINK) $(k_mixture_model_to_interpolation_OBJECTS) $(k_mixture_model_to_interpolation_LDADD) $(LIBS)
+	$(AM_V_CXXLD)$(CXXLINK) $(k_mixture_model_to_interpolation_OBJECTS) $(k_mixture_model_to_interpolation_LDADD) $(LIBS)
 merge_k_mixture_model$(EXEEXT): $(merge_k_mixture_model_OBJECTS) $(merge_k_mixture_model_DEPENDENCIES) $(EXTRA_merge_k_mixture_model_DEPENDENCIES) 
 	@rm -f merge_k_mixture_model$(EXEEXT)
-	$(CXXLINK) $(merge_k_mixture_model_OBJECTS) $(merge_k_mixture_model_LDADD) $(LIBS)
+	$(AM_V_CXXLD)$(CXXLINK) $(merge_k_mixture_model_OBJECTS) $(merge_k_mixture_model_LDADD) $(LIBS)
 prune_k_mixture_model$(EXEEXT): $(prune_k_mixture_model_OBJECTS) $(prune_k_mixture_model_DEPENDENCIES) $(EXTRA_prune_k_mixture_model_DEPENDENCIES) 
 	@rm -f prune_k_mixture_model$(EXEEXT)
-	$(CXXLINK) $(prune_k_mixture_model_OBJECTS) $(prune_k_mixture_model_LDADD) $(LIBS)
+	$(AM_V_CXXLD)$(CXXLINK) $(prune_k_mixture_model_OBJECTS) $(prune_k_mixture_model_LDADD) $(LIBS)
 validate_k_mixture_model$(EXEEXT): $(validate_k_mixture_model_OBJECTS) $(validate_k_mixture_model_DEPENDENCIES) $(EXTRA_validate_k_mixture_model_DEPENDENCIES) 
 	@rm -f validate_k_mixture_model$(EXEEXT)
-	$(CXXLINK) $(validate_k_mixture_model_OBJECTS) $(validate_k_mixture_model_LDADD) $(LIBS)
+	$(AM_V_CXXLD)$(CXXLINK) $(validate_k_mixture_model_OBJECTS) $(validate_k_mixture_model_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -478,25 +495,25 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/validate_k_mixture_model.Po@am__quote@
 
 .cpp.o:
-@am__fastdepCXX_TRUE@	$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXXCOMPILE) -c -o $@ $<
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXXCOMPILE) -c -o $@ $<
 
 .cpp.obj:
-@am__fastdepCXX_TRUE@	$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ `$(CYGPATH_W) '$<'`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ `$(CYGPATH_W) '$<'`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXXCOMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXXCOMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
 
 .cpp.lo:
-@am__fastdepCXX_TRUE@	$(LTCXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Plo
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(LTCXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Plo
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(LTCXXCOMPILE) -c -o $@ $<
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(LTCXXCOMPILE) -c -o $@ $<
 
 mostlyclean-libtool:
 	-rm -f *.lo
