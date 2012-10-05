@@ -36,12 +36,12 @@ struct _pinyin_context_t{
     ChewingParser2 * m_chewing_parser;
 
     FacadeChewingTable * m_pinyin_table;
-    FacadePhraseTable * m_phrase_table;
+    FacadePhraseTable2 * m_phrase_table;
     FacadePhraseIndex * m_phrase_index;
     Bigram * m_system_bigram;
     Bigram * m_user_bigram;
 
-    PinyinLookup * m_pinyin_lookup;
+    PinyinLookup2 * m_pinyin_lookup;
     PhraseLookup * m_phrase_lookup;
 
     char * m_system_dir;
@@ -150,7 +150,7 @@ pinyin_context_t * pinyin_init(const char * systemdir, const char * userdir){
     context->m_pinyin_table->load(context->m_options, chunk, userchunk);
 
     /* load phrase table */
-    context->m_phrase_table = new FacadePhraseTable;
+    context->m_phrase_table = new FacadePhraseTable2;
 
     /* load system phrase table */
     chunk = new MemoryChunk;
@@ -168,7 +168,7 @@ pinyin_context_t * pinyin_init(const char * systemdir, const char * userdir){
         (context->m_user_dir, "user_phrase_index.bin", NULL);
     if (!userchunk->load(filename)) {
         /* hack here: use local Phrase Table to create empty memory chunk. */
-        PhraseLargeTable table;
+        PhraseLargeTable2 table;
         table.store(userchunk);
     }
     g_free(filename);
@@ -190,7 +190,7 @@ pinyin_context_t * pinyin_init(const char * systemdir, const char * userdir){
     context->m_user_bigram->load_db(filename);
     g_free(filename);
 
-    context->m_pinyin_lookup = new PinyinLookup
+    context->m_pinyin_lookup = new PinyinLookup2
         ( context->m_options, context->m_pinyin_table,
           context->m_phrase_index, context->m_system_bigram,
           context->m_user_bigram);
@@ -204,7 +204,8 @@ pinyin_context_t * pinyin_init(const char * systemdir, const char * userdir){
 
 bool pinyin_load_phrase_library(pinyin_context_t * context,
                                 guint8 index){
-    assert(index < PHRASE_INDEX_LIBRARY_COUNT);
+    if (!(index < PHRASE_INDEX_LIBRARY_COUNT))
+        return false;
     const pinyin_table_info_t * table_info = pinyin_phrase_files + index;
 
     if (SYSTEM_FILE == table_info->m_file_type) {
@@ -282,12 +283,13 @@ bool pinyin_iterator_add_phrase(import_iterator_t * iter,
                                 const char * pinyin,
                                 gint count){
     /* if -1 == count, use the default value. */
-    const int default_count = 100;
+    const gint default_count = 100;
+    const guint32 unigram_factor = 7;
     if (-1 == count)
         count = default_count;
 
     pinyin_context_t * & context = iter->m_context;
-    FacadePhraseTable * & phrase_table = context->m_phrase_table;
+    FacadePhraseTable2 * & phrase_table = context->m_phrase_table;
     FacadeChewingTable * & pinyin_table = context->m_pinyin_table;
     FacadePhraseIndex * & phrase_index = context->m_phrase_index;
 
@@ -305,8 +307,14 @@ bool pinyin_iterator_add_phrase(import_iterator_t * iter,
     ChewingKeyRestVector key_rests =
         g_array_new(FALSE, FALSE, sizeof(ChewingKeyRest));
 
+    PhraseTokens tokens;
+    memset(tokens, 0, sizeof(PhraseTokens));
+    phrase_index->prepare_tokens(tokens);
+    int retval = phrase_table->search(len_phrase, ucs4_phrase, tokens);
+    int num = get_first_token(tokens, token);
+    phrase_index->destroy_tokens(tokens);
+
     PhraseItem item;
-    int retval = phrase_table->search(len_phrase, ucs4_phrase, token);
     if (!(retval & SEARCH_OK)) {
         /* if not exists, get the maximum token,
            then add it directly with maximum token + 1; */
@@ -315,11 +323,13 @@ bool pinyin_iterator_add_phrase(import_iterator_t * iter,
 
         if (ERROR_OK == retval) {
             token = range.m_range_end;
+            if (0x00000000 == (token & PHRASE_MASK))
+                token++;
 
             /* parse the pinyin. */
             parser.parse(options, keys, key_rests, pinyin, strlen(pinyin));
 
-            if ( len_phrase == keys->len ) { /* valid pinyin */
+            if (len_phrase == keys->len) { /* valid pinyin */
                 phrase_table->add_index(len_phrase, ucs4_phrase, token);
                 pinyin_table->add_index
                     (keys->len, (ChewingKey *)(keys->data), token);
@@ -327,6 +337,8 @@ bool pinyin_iterator_add_phrase(import_iterator_t * iter,
                 item.set_phrase_string(len_phrase, ucs4_phrase);
                 item.append_pronunciation((ChewingKey *)(keys->data), count);
                 phrase_index->add_phrase_item(token, &item);
+                phrase_index->add_unigram_frequency(token,
+                                                    count * unigram_factor);
                 result = true;
             }
         }
@@ -604,6 +616,8 @@ bool pinyin_guess_sentence_with_prefix(pinyin_instance_t * instance,
                                        const char * prefix){
     pinyin_context_t * & context = instance->m_context;
 
+    FacadePhraseIndex * & phrase_index = context->m_phrase_index;
+
     g_array_set_size(instance->m_prefixes, 0);
     g_array_append_val(instance->m_prefixes, sentence_start);
 
@@ -618,7 +632,13 @@ bool pinyin_guess_sentence_with_prefix(pinyin_instance_t * instance,
 
             phrase_token_t token = null_token;
             ucs4_t * start = ucs4_str + len_str - i;
-            int result = context->m_phrase_table->search(i, start, token);
+
+            PhraseTokens tokens;
+            memset(tokens, 0, sizeof(tokens));
+            phrase_index->prepare_tokens(tokens);
+            int result = context->m_phrase_table->search(i, start, tokens);
+            int num = get_first_token(tokens, token);
+            phrase_index->destroy_tokens(tokens);
             if (result & SEARCH_OK)
                 g_array_append_val(instance->m_prefixes, token);
         }
@@ -1125,8 +1145,10 @@ bool pinyin_get_candidates(pinyin_instance_t * instance,
             g_array_append_val(candidates, *item);
         }
 
+#if 0
         if (!(retval & SEARCH_CONTINUED))
             break;
+#endif
     }
 
     g_array_free(items, TRUE);
@@ -1499,8 +1521,10 @@ bool pinyin_get_full_pinyin_candidates(pinyin_instance_t * instance,
             g_array_append_val(candidates, *item);
         }
 
+#if 0
         if (!(retval & SEARCH_CONTINUED))
             break;
+#endif
     }
 
     g_array_free(items, TRUE);
@@ -1595,6 +1619,24 @@ bool pinyin_clear_constraints(pinyin_instance_t * instance){
     return retval;
 }
 
+bool pinyin_lookup_token(pinyin_instance_t * instance,
+                         const char * phrase, phrase_token_t * token){
+    pinyin_context_t * & context = instance->m_context;
+    FacadePhraseIndex * & phrase_index = context->m_phrase_index;
+
+    glong ucs4_len = 0;
+    ucs4_t * ucs4_phrase = g_utf8_to_ucs4(phrase, -1, NULL, &ucs4_len, NULL);
+
+    PhraseTokens tokens;
+    memset(tokens, 0, sizeof(PhraseTokens));
+    phrase_index->prepare_tokens(tokens);
+    int retval = context->m_phrase_table->search(ucs4_len, ucs4_phrase, tokens);
+    int num = get_first_token(tokens, *token);
+    phrase_index->destroy_tokens(tokens);
+
+    return SEARCH_OK & retval;
+}
+
 /* the returned word should be freed by g_free. */
 bool pinyin_translate_token(pinyin_instance_t * instance,
                             phrase_token_t token, char ** word){
@@ -1608,6 +1650,27 @@ bool pinyin_translate_token(pinyin_instance_t * instance,
     *word = g_ucs4_to_utf8(buffer, length, NULL, NULL, NULL);
     return ERROR_OK == retval;
 }
+
+bool pinyin_get_pinyins_from_token(pinyin_instance_t * instance,
+                                   phrase_token_t token, GArray * pinyinkeys){
+    pinyin_context_t * & context = instance->m_context;
+    FacadePhraseIndex * & phrase_index = context->m_phrase_index;
+    PhraseItem item;
+
+    int retval = phrase_index->get_phrase_item(token, item);
+    if (1 != item.get_phrase_length())
+        return false;
+
+    guint8 npinyin = item.get_n_pronunciation();
+    size_t i;
+    ChewingKey onekey; guint32 freq;
+    for (i = 0; i < npinyin; ++i){
+        item.get_nth_pronunciation(i, &onekey, freq);
+        g_array_append_val(pinyinkeys, onekey);
+    }
+    return true;
+}
+
 
 bool pinyin_train(pinyin_instance_t * instance){
     if (!instance->m_context->m_user_dir)

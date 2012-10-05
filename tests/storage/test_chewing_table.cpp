@@ -38,9 +38,12 @@ int main(int argc, char * argv[]) {
     largetable.store(new_chunk);
     largetable.load(new_chunk);
 
-    char* linebuf = NULL; size_t size = 0;
-    while( getline(&linebuf, &size, stdin) ){
-        linebuf[strlen(linebuf)-1] = '\0';
+    char* linebuf = NULL; size_t size = 0; ssize_t read;
+    while ((read = getline(&linebuf, &size, stdin)) != -1) {
+        if ( '\n' == linebuf[strlen(linebuf) - 1] ) {
+            linebuf[strlen(linebuf) - 1] = '\0';
+        }
+
 	if ( strcmp ( linebuf, "quit" ) == 0)
 	    break;
 
@@ -62,13 +65,12 @@ int main(int argc, char * argv[]) {
         phrase_index.prepare_ranges(ranges);
 
         for (size_t i = 0; i < bench_times; ++i) {
+            phrase_index.clear_ranges(ranges);
             largetable.search(keys->len, (ChewingKey *)keys->data, ranges);
         }
-
-        phrase_index.clear_ranges(ranges);
-
         print_time(start, bench_times);
 
+        phrase_index.clear_ranges(ranges);
         largetable.search(keys->len, (ChewingKey *)keys->data, ranges);
 
         for (size_t i = 0; i < PHRASE_INDEX_LIBRARY_COUNT; ++i) {

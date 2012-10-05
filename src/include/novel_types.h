@@ -57,8 +57,10 @@ struct PhraseIndexRange{
     phrase_token_t m_range_end; /* pass the last item like stl */
 };
 
-/*Array of PhraseIndexRange*/
+/* Array of PhraseIndexRange */
 typedef GArray * PhraseIndexRanges[PHRASE_INDEX_LIBRARY_COUNT];
+/* Array of Token */
+typedef GArray * PhraseTokens[PHRASE_INDEX_LIBRARY_COUNT];
 
 /* 
  *  PinYin Table Definition
@@ -128,6 +130,10 @@ typedef guint32 table_offset_t;
 typedef double parameter_t;
 
 #define LAMBDA_PARAMETER 0.330642
+
+/* Array of ChewingKey/ChewingKeyRest */
+typedef GArray * ChewingKeyVector;
+typedef GArray * ChewingKeyRestVector;
 
 /* Array of phrase_token_t */
 typedef GArray * TokenVector;

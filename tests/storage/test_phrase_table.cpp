@@ -6,38 +6,62 @@
 size_t bench_times = 1000;
 
 int main(int argc, char * argv[]){
-    PhraseLargeTable largetable;
+    PhraseLargeTable2 largetable;
+    FacadePhraseIndex phrase_index;
 
-    if (!load_phrase_table(NULL, &largetable, NULL))
+    if (!load_phrase_table(NULL, &largetable, &phrase_index))
         exit(ENOENT);
 
     MemoryChunk * chunk = new MemoryChunk;
     largetable.store(chunk);
     largetable.load(chunk);
 
-    char * linebuf = NULL;
-    size_t size = 0;
-    while( getline(&linebuf, &size, stdin) ){
-        linebuf[strlen(linebuf) - 1] = '\0';
+    char* linebuf = NULL; size_t size = 0; ssize_t read;
+    while ((read = getline(&linebuf, &size, stdin)) != -1) {
+        if ( '\n' == linebuf[strlen(linebuf) - 1] ) {
+            linebuf[strlen(linebuf) - 1] = '\0';
+        }
+
         if ( strcmp ( linebuf, "quit" ) == 0)
             break;
 
         glong phrase_len = g_utf8_strlen(linebuf, -1);
         ucs4_t * new_phrase = g_utf8_to_ucs4(linebuf, -1, NULL, NULL, NULL);
-        phrase_token_t token;
+
+        if (0 == phrase_len)
+            continue;
+
+        PhraseTokens tokens;
+        memset(tokens, 0, sizeof(PhraseTokens));
+        phrase_index.prepare_tokens(tokens);
 
         guint32 start = record_time();
-        for ( size_t i = 0; i < bench_times; ++i){
-            largetable.search(phrase_len, new_phrase, token);
+        for (size_t i = 0; i < bench_times; ++i){
+            phrase_index.clear_tokens(tokens);
+            largetable.search(phrase_len, new_phrase, tokens);
         }
         print_time(start, bench_times);
 
-        int retval = largetable.search(phrase_len, new_phrase, token);
-        if ( retval & SEARCH_OK )
-            printf("%s:\t%d\n", linebuf, token);
-        else
-            printf("phrase %s not found.\n", linebuf);
+        phrase_index.clear_tokens(tokens);
+        int retval = largetable.search(phrase_len, new_phrase, tokens);
 
+        if (retval & SEARCH_OK) {
+            for (size_t i = 0; i < PHRASE_INDEX_LIBRARY_COUNT; ++i) {
+                GArray * array = tokens[i];
+                if (NULL == array)
+                    continue;
+
+                for (size_t k = 0; k < array->len; ++k) {
+                    phrase_token_t token = g_array_index
+                        (array, phrase_token_t, k);
+
+                    printf("token:%d\t", token);
+                }
+            }
+            printf("\n");
+        }
+
+        phrase_index.destroy_tokens(tokens);
         g_free(new_phrase);
     }
 

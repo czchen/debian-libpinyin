@@ -2,7 +2,7 @@
  *  libpinyin
  *  Library to deal with pinyin.
  *  
- *  Copyright (C) 2010 Peng Wu
+ *  Copyright (C) 2012 Peng Wu <alexepico@gmail.com>
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,8 +19,8 @@
  *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-#ifndef PHRASE_LARGE_TABLE_H
-#define PHRASE_LARGE_TABLE_H
+#ifndef PHRASE_LARGE_TABLE2_H
+#define PHRASE_LARGE_TABLE2_H
 
 #include <stdio.h>
 #include "novel_types.h"
@@ -30,16 +30,16 @@ namespace pinyin{
 
 const size_t PHRASE_NUMBER_OF_BITMAP_INDEX = 1<<(sizeof(ucs4_t) / 4 * 8);
 
-class PhraseLengthIndexLevel;
+class PhraseLengthIndexLevel2;
 
-class PhraseBitmapIndexLevel{
+class PhraseBitmapIndexLevel2{
 protected:
-    PhraseLengthIndexLevel * m_phrase_length_indexes[PHRASE_NUMBER_OF_BITMAP_INDEX];
-    /* use a half ucs4_t for class PhraseLengthIndexLevel, just like PinyinLengthIndexLevel. */
+    PhraseLengthIndexLevel2 * m_phrase_length_indexes[PHRASE_NUMBER_OF_BITMAP_INDEX];
+    /* use the third byte of ucs4_t for class PhraseLengthIndexLevel2. */
     void reset();
 public:
-    PhraseBitmapIndexLevel();
-    ~PhraseBitmapIndexLevel(){
+    PhraseBitmapIndexLevel2();
+    ~PhraseBitmapIndexLevel2(){
         reset();
     }
 
@@ -47,17 +47,20 @@ public:
     bool load(MemoryChunk * chunk, table_offset_t offset, table_offset_t end);
     bool store(MemoryChunk * new_chunk, table_offset_t offset, table_offset_t & end);
 
-    /* search/add_index/remove_index method */
-    int search( int phrase_length, /* in */ ucs4_t phrase[],
-                /* out */ phrase_token_t & token);
+    /* search method */
+    int search(int phrase_length, /* in */ ucs4_t phrase[],
+               /* out */ PhraseTokens tokens) const;
 
-    int add_index( int phrase_length, /* in */ ucs4_t phrase[], /* in */ phrase_token_t token);
-    int remove_index( int phrase_length, /* in */ ucs4_t phrase[], /* out */ phrase_token_t & token);
+    /* add_index/remove_index method */
+    int add_index(int phrase_length, /* in */ ucs4_t phrase[], /* in */ phrase_token_t token);
+
+    int remove_index(int phrase_length, /* in */ ucs4_t phrase[], /* in */ phrase_token_t token);
 };
 
-class PhraseLargeTable{
+
+class PhraseLargeTable2{
 protected:
-    PhraseBitmapIndexLevel m_bitmap_table;
+    PhraseBitmapIndexLevel2 m_bitmap_table;
     MemoryChunk * m_chunk;
 
     void reset(){
@@ -67,11 +70,11 @@ protected:
         }
     }
 public:
-    PhraseLargeTable(){
+    PhraseLargeTable2(){
         m_chunk = NULL;
     }
 
-    ~PhraseLargeTable(){
+    ~PhraseLargeTable2(){
         reset();
     }
 
@@ -89,20 +92,44 @@ public:
 
     bool load_text(FILE * file);
 
-    /* search/add_index/remove_index method */
-    int search( int phrase_length, /* in */ ucs4_t phrase[],
-                /* out */ phrase_token_t & token){
-        return m_bitmap_table.search(phrase_length, phrase, token);
+    /* search method */
+    int search(int phrase_length, /* in */ ucs4_t phrase[],
+               /* out */ PhraseTokens tokens) const {
+        return m_bitmap_table.search(phrase_length, phrase, tokens);
     }
 
-    int add_index( int phrase_length, /* in */ ucs4_t phrase[], /* in */ phrase_token_t token){
+    /* add_index/remove_index method */
+    int add_index(int phrase_length, /* in */ ucs4_t phrase[], /* in */ phrase_token_t token) {
         return m_bitmap_table.add_index(phrase_length, phrase, token);
     }
 
-    int remove_index( int phrase_length, /* in */ ucs4_t phrase[], /* out */ phrase_token_t & token){
+    int remove_index(int phrase_length, /* in */ ucs4_t phrase[], /* in */ phrase_token_t token) {
         return m_bitmap_table.remove_index(phrase_length, phrase, token);
     }
 };
+
+/* for compatibility. */
+static inline int get_first_token(PhraseTokens tokens,
+                                  /* out */ phrase_token_t & token){
+    int num = 0; token = null_token;
+
+    for (size_t i = 0; i < PHRASE_INDEX_LIBRARY_COUNT; ++i) {
+        GArray * array = tokens[i];
+        if (NULL == array || 0 == array->len)
+            continue;
+
+        num += array->len;
+
+        if (null_token == token) {
+            token = g_array_index(array, phrase_token_t, 0);
+        }
+    }
+
+    /* the following line will be removed in future after code are verified. */
+    assert(0 == num || 1 == num);
+
+    return num;
+}
 
 };
 
