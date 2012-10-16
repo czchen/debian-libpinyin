@@ -534,6 +534,8 @@ void pinyin_fini(pinyin_context_t * context){
     g_free(context->m_system_dir);
     g_free(context->m_user_dir);
     context->m_modified = false;
+
+    delete context;
 }
 
 /* copy from options to context->m_options. */
@@ -1053,6 +1055,8 @@ static bool _remove_duplicated_items_by_phrase_string
             (candidates, lookup_candidate_t, i);
 
         if (ZOMBIE_CANDIDATE == candidate->m_candidate_type) {
+            g_free(candidate->m_phrase_string);
+            g_free(candidate->m_new_pinyins);
             g_array_remove_index(candidates, i);
             i--;
         }

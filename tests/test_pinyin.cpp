@@ -52,6 +52,9 @@ int main(int argc, char * argv[]){
             prefixbuf[strlen(prefixbuf) - 1] = '\0';
         }
 
+        fprintf(stdout, "pinyin:");
+        fflush(stdout);
+
         if ((read = getline(&linebuf, &linesize, stdin)) == -1)
             break;
 
@@ -84,6 +87,7 @@ int main(int argc, char * argv[]){
         pinyin_save(context);
     }
 
+    pinyin_free_candidates(instance, candidates);
     g_array_free(candidates, TRUE);
     pinyin_free_instance(instance);
     pinyin_fini(context);

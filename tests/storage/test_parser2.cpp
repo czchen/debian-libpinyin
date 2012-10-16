@@ -56,6 +56,7 @@ int main(int argc, char * argv[]) {
     ChewingKeyVector keys = g_array_new(FALSE, FALSE, sizeof(ChewingKey));
     ChewingKeyRestVector key_rests =
         g_array_new(FALSE, FALSE, sizeof(ChewingKeyRest));
+
     pinyin_option_t options = PINYIN_CORRECT_ALL | USE_TONE | USE_RESPLIT_TABLE;
 
     int i = 1;
@@ -101,12 +102,14 @@ int main(int argc, char * argv[]) {
             break;
 
 #if 0
-        ChewingKey key; ChewingKeyRest key_rest;
-        bool success = parser->parse_one_key(options, key, key_rest,
+        ChewingKey key;
+        bool success = parser->parse_one_key(options, key,
                                              linebuf, strlen(linebuf));
-        if (success)
-            printf("pinyin:%s\t%d\t%d\n", key.get_pinyin_string(),
-                   key_rest.m_raw_begin, key_rest.m_raw_end);
+        if (success) {
+            gchar * pinyins = key.get_pinyin_string();
+            printf("pinyin:%s\n", pinyins);
+            g_free(pinyins);
+        }
 #endif
 
 #if 1
@@ -127,8 +130,11 @@ int main(int argc, char * argv[]) {
                 &g_array_index(keys, ChewingKey, i);
             ChewingKeyRest * key_rest =
                 &g_array_index(key_rests, ChewingKeyRest, i);
-            printf("%s %d %d\t", key->get_pinyin_string(),
+
+            gchar * pinyins = key->get_pinyin_string();
+            printf("%s %d %d\t", pinyins,
                    key_rest->m_raw_begin, key_rest->m_raw_end);
+            g_free(pinyins);
         }
         printf("\n");
 #endif
@@ -137,6 +143,11 @@ int main(int argc, char * argv[]) {
 
     if (linebuf)
         free(linebuf);
+
+    delete parser;
+
+    g_array_free(key_rests, TRUE);
+    g_array_free(keys, TRUE);
 
     return 0;
 }
