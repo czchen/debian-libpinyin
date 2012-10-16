@@ -1,3 +1,9 @@
+libpinyin (0.7.92-1) experimental; urgency=low
+
+  * New upstream release
+
+ -- Asias He <asias@debian.org>  Tue, 16 Oct 2012 19:40:17 +0800
+
 libpinyin (0.7.91-1) experimental; urgency=low
 
   * New upstream release
