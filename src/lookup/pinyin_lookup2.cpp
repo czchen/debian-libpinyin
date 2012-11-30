@@ -265,6 +265,11 @@ bool PinyinLookup2::get_best_match(TokenVector prefixes,
                     search_unigram2(topresults, i, ranges);
             }
 
+            /* poke the next constraint. */
+            ++ next_constraint;
+            if (CONSTRAINT_ONESTEP == next_constraint->m_type)
+                break;
+
             /* no longer pinyin */
             if (!(result & SEARCH_CONTINUED))
                 break;
