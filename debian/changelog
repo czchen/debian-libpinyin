@@ -1,3 +1,12 @@
+libpinyin (0.8.0-2) unstable; urgency=low
+
+  * Bump standard version to 3.9.4: no modification needed.
+  * Remove DMUA tag.
+  * Upload to unstable.
+  * Add symbols for libpinyin2.
+
+ -- YunQiang Su <wzssyqa@gmail.com>  Sat, 16 Feb 2013 13:08:01 +0800
+
 libpinyin (0.8.0-1) experimental; urgency=low
 
   * New upstream release
