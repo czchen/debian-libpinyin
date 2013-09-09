@@ -25,9 +25,6 @@
 #include "pinyin_internal.h"
 #include "tests_helper.h"
 
-void print_help(){
-    printf("Usage: test_phrase_lookup\n");
-}
 
 bool try_phrase_lookup(PhraseLookup * phrase_lookup,
                        ucs4_t * ucs4_str, glong ucs4_len){
@@ -43,7 +40,7 @@ bool try_phrase_lookup(PhraseLookup * phrase_lookup,
     }
     printf("\n");
 #endif
-    phrase_lookup->convert_to_utf8(results, "\n", result_string);
+    phrase_lookup->convert_to_utf8(results, result_string);
     if (result_string)
         printf("%s\n", result_string);
     else
@@ -54,21 +51,15 @@ bool try_phrase_lookup(PhraseLookup * phrase_lookup,
 }
 
 int main(int argc, char * argv[]){
-    int i = 1;
-
     setlocale(LC_ALL, "");
-    /* deal with options. */
-    while ( i < argc ){
-        if ( strcmp ("--help", argv[i]) == 0 ){
-            print_help();
-            exit(0);
-        } else {
-            print_help();
-            exit(EINVAL);
-        }
-        ++i;
-    }
 
+    SystemTableInfo system_table_info;
+
+    bool retval = system_table_info.load("../../data/table.conf");
+    if (!retval) {
+        fprintf(stderr, "load table.conf failed.\n");
+        exit(ENOENT);
+    }
 
     /* init phrase table */
     FacadePhraseTable2 phrase_table;
@@ -76,9 +67,12 @@ int main(int argc, char * argv[]){
     chunk->load("../../data/phrase_index.bin");
     phrase_table.load(chunk, NULL);
 
+    const pinyin_table_info_t * phrase_files =
+        system_table_info.get_table_info();
+
     /* init phrase index */
     FacadePhraseIndex phrase_index;
-    if (!load_phrase_index(&phrase_index))
+    if (!load_phrase_index(phrase_files, &phrase_index))
         exit(ENOENT);
 
     /* init bi-gram */
@@ -86,8 +80,11 @@ int main(int argc, char * argv[]){
     system_bigram.attach("../../data/bigram.db", ATTACH_READONLY);
     Bigram user_bigram;
 
+    gfloat lambda = system_table_info.get_lambda();
+
     /* init phrase lookup */
-    PhraseLookup phrase_lookup(&phrase_table, &phrase_index,
+    PhraseLookup phrase_lookup(lambda,
+                               &phrase_table, &phrase_index,
                                &system_bigram, &user_bigram);
 
     /* try one sentence */

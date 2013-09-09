@@ -32,18 +32,29 @@ typedef GHashTable * HashofSecondWord;
 
 typedef GHashTable * HashofUnigram;
 
-static guint32 g_maximum_occurs = 20;
-static parameter_t g_maximum_increase_rates = 3.;
-static bool g_train_pi_gram = true;
-
 
 void print_help(){
-    printf("Usage: gen_k_mixture_model [--skip-pi-gram-training]\n");
-    printf("                           [--maximum-occurs-allowed <INT>]\n");
-    printf("                           [--maximum-increase-rates-allowed <FLOAT>]\n");
-    printf("                           [--k-mixture-model-file <FILENAME>]\n");
-    printf("                           {<FILENAME>}+\n");
+    printf("Usage: gen_k_mixture_model [--skip-pi-gram-training]\n"
+           "                           [--maximum-occurs-allowed <INT>]\n"
+           "                           [--maximum-increase-rates-allowed <FLOAT>]\n"
+           "                           [--k-mixture-model-file <FILENAME>]\n"
+           "                           {<FILENAME>}+\n");
 }
+
+
+static gint g_maximum_occurs = 20;
+static parameter_t g_maximum_increase_rates = 3.;
+static gboolean g_train_pi_gram = TRUE;
+static const gchar * g_k_mixture_model_filename = NULL;
+
+static GOptionEntry entries[] =
+{
+    {"skip-pi-gram-training", 0, G_OPTION_FLAG_REVERSE, G_OPTION_ARG_NONE, &g_train_pi_gram, "skip pi-gram training", NULL},
+    {"maximum-occurs-allowed", 0, 0, G_OPTION_ARG_INT, &g_maximum_occurs, "maximum occurs allowed", NULL},
+    {"maximum-increase-rates-allowed", 0, 0, G_OPTION_ARG_DOUBLE, &g_maximum_increase_rates, "maximum increase rates allowed", NULL},
+    {"k-mixture-model-file", 0, 0, G_OPTION_ARG_FILENAME, &g_k_mixture_model_filename, "k mixture model file", NULL},
+    {NULL}
+};
 
 
 bool read_document(PhraseLargeTable2 * phrase_table,
@@ -51,36 +62,19 @@ bool read_document(PhraseLargeTable2 * phrase_table,
                    FILE * document,
                    HashofDocument hash_of_document,
                    HashofUnigram hash_of_unigram){
-    PhraseTokens tokens;
-    memset(tokens, 0, sizeof(PhraseTokens));
-    phrase_index->prepare_tokens(tokens);
 
-    char * linebuf = NULL;
-    size_t size = 0;
+    char * linebuf = NULL;size_t size = 0;
     phrase_token_t last_token, cur_token = last_token = 0;
 
     while ( getline(&linebuf, &size, document) ){
         if ( feof(document) )
             break;
-        /* Note: check '\n' here? */
-        linebuf[strlen(linebuf) - 1] = '\0';
 
-        glong phrase_len = 0;
-        ucs4_t * phrase = g_utf8_to_ucs4(linebuf, -1, NULL, &phrase_len, NULL);
-
-        phrase_token_t token = null_token;
-        if ( 0 != phrase_len ) {
-            phrase_index->clear_tokens(tokens);
-            int search_result = phrase_table->search
-                (phrase_len, phrase, tokens);
-            int num = get_first_token(tokens, token);
-
-            if ( !(search_result & SEARCH_OK) )
-                token = null_token;
-
-            g_free(phrase);
-            phrase = NULL;
+        if ( '\n' == linebuf[strlen(linebuf) - 1] ) {
+            linebuf[strlen(linebuf) - 1] = '\0';
         }
+
+        TAGLIB_PARSE_SEGMENTED_LINE(phrase_index, token, linebuf);
 
         last_token = cur_token;
         cur_token = token;
@@ -141,8 +135,6 @@ bool read_document(PhraseLargeTable2 * phrase_table,
 
     free(linebuf);
 
-    phrase_index->destroy_tokens(tokens);
-
     return true;
 }
 
@@ -154,7 +146,7 @@ static void train_word_pair(HashofUnigram hash_of_unigram,
     bool exists = single_gram->get_array_item(token2, array_item);
     if ( exists ) {
         guint32 maximum_occurs_allowed = std_lite::max
-            (g_maximum_occurs,
+            ((guint32)g_maximum_occurs,
              (guint32)ceil(array_item.m_Mr * g_maximum_increase_rates));
         /* Exceeds the maximum occurs allowed of the word or phrase,
          * in a single document.
@@ -324,50 +316,42 @@ static bool post_processing_unigram(KMixtureModelBigram * bigram,
 
 int main(int argc, char * argv[]){
     int i = 1;
-    const char * k_mixture_model_filename = NULL;
 
     setlocale(LC_ALL, "");
-    while ( i < argc ){
-        if ( strcmp("--help", argv[i]) == 0 ){
-            print_help();
-            exit(0);
-        } else if ( strcmp("--skip-pi-gram-training", argv[i]) == 0 ){
-            g_train_pi_gram = false;
-        } else if ( strcmp("--maximum-occurs-allowed", argv[i]) == 0 ){
-            if ( ++i >= argc ){
-                print_help();
-                exit(EINVAL);
-            }
-            g_maximum_occurs = atoi(argv[i]);
-        } else if ( strcmp("--maximum-increase-rates-allowed", argv[i]) == 0 ){
-            if ( ++i >= argc ){
-                print_help();
-                exit(EINVAL);
-            }
-            g_maximum_increase_rates = atof(argv[i]);
-        } else if ( strcmp("--k-mixture-model-file", argv[i]) == 0 ){
-            if ( ++i >= argc ){
-                print_help();
-                exit(EINVAL);
-            }
-            k_mixture_model_filename = argv[i];
-        } else {
-            break;
-        }
-        ++i;
+
+    GError * error = NULL;
+    GOptionContext * context;
+
+    context = g_option_context_new("- generate k mixture model");
+    g_option_context_add_main_entries(context, entries, NULL);
+    if (!g_option_context_parse(context, &argc, &argv, &error)) {
+        g_print("option parsing failed:%s\n", error->message);
+        exit(EINVAL);
+    }
+
+    SystemTableInfo system_table_info;
+
+    bool retval = system_table_info.load(SYSTEM_TABLE_INFO);
+    if (!retval) {
+        fprintf(stderr, "load table.conf failed.\n");
+        exit(ENOENT);
     }
 
     PhraseLargeTable2 phrase_table;
     MemoryChunk * chunk = new MemoryChunk;
-    chunk->load("phrase_index.bin");
+    chunk->load(SYSTEM_PHRASE_INDEX);
     phrase_table.load(chunk);
 
     FacadePhraseIndex phrase_index;
-    if (!load_phrase_index(&phrase_index))
+
+    const pinyin_table_info_t * phrase_files =
+        system_table_info.get_table_info();
+
+    if (!load_phrase_index(phrase_files, &phrase_index))
         exit(ENOENT);
 
     KMixtureModelBigram bigram(K_MIXTURE_MODEL_MAGIC_NUMBER);
-    bigram.attach(k_mixture_model_filename, ATTACH_READWRITE|ATTACH_CREATE);
+    bigram.attach(g_k_mixture_model_filename, ATTACH_READWRITE|ATTACH_CREATE);
 
     while ( i < argc ){
         const char * filename = argv[i];

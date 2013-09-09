@@ -20,9 +20,19 @@
  */
 
 #include <stdio.h>
+#include <locale.h>
 #include "pinyin_internal.h"
 #include "utils_helper.h"
 #include "k_mixture_model.h"
+
+static const gchar * k_mixture_model_filename = NULL;
+
+static GOptionEntry entries[] =
+{
+    {"k-mixture-model-file", 0, 0, G_OPTION_ARG_FILENAME, &k_mixture_model_filename, "k mixture model file", NULL},
+    {NULL}
+};
+
 
 enum LINE_TYPE{
     BEGIN_LINE = 1,
@@ -50,9 +60,6 @@ bool parse_bigram(FILE * input, PhraseLargeTable2 * phrase_table,
                   FacadePhraseIndex * phrase_index,
                   KMixtureModelBigram * bigram);
 
-void print_help(){
-    printf("Usage: import_k_mixture_model [--k-mixture-model-file <FILENAME>]\n");
-}
 
 static ssize_t my_getline(FILE * input){
     ssize_t result = getline(&linebuf, &len, input);
@@ -134,14 +141,17 @@ bool parse_unigram(FILE * input, PhraseLargeTable2 * phrase_table,
                    KMixtureModelBigram * bigram){
     taglib_push_state();
 
-    assert(taglib_add_tag(GRAM_1_ITEM_LINE, "\\item", 1, "count:freq", ""));
+    assert(taglib_add_tag(GRAM_1_ITEM_LINE, "\\item", 2, "count:freq", ""));
 
     do {
         assert(taglib_read(linebuf, line_type, values, required));
         switch (line_type) {
         case GRAM_1_ITEM_LINE:{
             /* handle \item in \1-gram */
-            TAGLIB_GET_VALUE(token, 0);
+            TAGLIB_GET_TOKEN(token, 0);
+            TAGLIB_GET_PHRASE_STRING(word, 1);
+            assert(taglib_validate_token_with_string
+                   (phrase_index, token, word));
 
             TAGLIB_GET_TAGVALUE(glong, count, atol);
             TAGLIB_GET_TAGVALUE(glong, freq, atol);
@@ -171,7 +181,7 @@ bool parse_bigram(FILE * input, PhraseLargeTable2 * phrase_table,
                   KMixtureModelBigram * bigram){
     taglib_push_state();
 
-    assert(taglib_add_tag(GRAM_2_ITEM_LINE, "\\item", 2,
+    assert(taglib_add_tag(GRAM_2_ITEM_LINE, "\\item", 4,
                           "count:T:N_n_0:n_1:Mr", ""));
 
     phrase_token_t last_token = null_token;
@@ -182,8 +192,15 @@ bool parse_bigram(FILE * input, PhraseLargeTable2 * phrase_table,
         case GRAM_2_ITEM_LINE:{
             /* handle \item in \2-gram */
             /* two tokens */
-            TAGLIB_GET_VALUE(token1, 0);
-            TAGLIB_GET_VALUE(token2, 1);
+            TAGLIB_GET_TOKEN(token1, 0);
+            TAGLIB_GET_PHRASE_STRING(word1, 1);
+            assert(taglib_validate_token_with_string
+                   (phrase_index, token1, word1));
+
+            TAGLIB_GET_TOKEN(token2, 2);
+            TAGLIB_GET_PHRASE_STRING(word2, 3);
+            assert(taglib_validate_token_with_string
+                   (phrase_index, token2, word2));
 
             TAGLIB_GET_TAGVALUE(glong, count, atol);
             TAGLIB_GET_TAGVALUE(glong, T, atol);
@@ -214,6 +231,8 @@ bool parse_bigram(FILE * input, PhraseLargeTable2 * phrase_table,
                 last_token = token1;
                 last_single_gram = single_gram;
             }
+
+            assert(NULL != last_single_gram);
             assert(last_single_gram->insert_array_item(token2, array_item));
             break;
         }
@@ -240,42 +259,43 @@ bool parse_bigram(FILE * input, PhraseLargeTable2 * phrase_table,
 }
 
 int main(int argc, char * argv[]){
-    int i = 1;
-    const char * k_mixture_model_filename = NULL;
     FILE * input = stdin;
 
-    while ( i < argc ){
-        if ( strcmp ("--help", argv[i]) == 0 ){
-            print_help();
-            exit(0);
-        } else if ( strcmp ("--k-mixture-model-file", argv[i]) == 0 ){
-            if ( ++i > argc ){
-                print_help();
-                exit(EINVAL);
-            }
-            k_mixture_model_filename = argv[i];
-        } else {
-            print_help();
-            exit(EINVAL);
-        }
-        ++i;
+    setlocale(LC_ALL, "");
+
+    GError * error = NULL;
+    GOptionContext * context;
+
+    context = g_option_context_new("- import k mixture model");
+    g_option_context_add_main_entries(context, entries, NULL);
+    if (!g_option_context_parse(context, &argc, &argv, &error)) {
+        g_print("option parsing failed:%s\n", error->message);
+        exit(EINVAL);
+    }
+
+    SystemTableInfo system_table_info;
+
+    bool retval = system_table_info.load(SYSTEM_TABLE_INFO);
+    if (!retval) {
+        fprintf(stderr, "load table.conf failed.\n");
+        exit(ENOENT);
     }
 
     PhraseLargeTable2 phrase_table;
     MemoryChunk * chunk = new MemoryChunk;
-    chunk->load("phrase_index.bin");
+    chunk->load(SYSTEM_PHRASE_INDEX);
     phrase_table.load(chunk);
 
     FacadePhraseIndex phrase_index;
-    if (!load_phrase_index(&phrase_index))
+
+    const pinyin_table_info_t * phrase_files =
+        system_table_info.get_table_info();
+
+    if (!load_phrase_index(phrase_files, &phrase_index))
         exit(ENOENT);
 
     KMixtureModelBigram bigram(K_MIXTURE_MODEL_MAGIC_NUMBER);
     bigram.attach(k_mixture_model_filename, ATTACH_READWRITE|ATTACH_CREATE);
-
-    PhraseTokens tokens;
-    memset(tokens, 0, sizeof(PhraseTokens));
-    phrase_index.prepare_tokens(tokens);
 
     taglib_init();
 
@@ -297,8 +317,6 @@ int main(int argc, char * argv[]){
         parse_body(input, &phrase_table, &phrase_index, &bigram);
 
     taglib_fini();
-
-    phrase_index.destroy_tokens(tokens);
 
     return 0;
 }

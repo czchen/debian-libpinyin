@@ -25,39 +25,13 @@
 #include <glib.h>
 #include "chewing_enum.h"
 
+using namespace pinyin;
+
+G_BEGIN_DECLS
+
 /** @file chewing_key.h
  *  @brief the definitions of chewing key related classes and structs.
  */
-
-namespace pinyin{
-
-
-/**
- * @brief enums of Double Pinyin Schemes.
- */
-enum DoublePinyinScheme
-{
-    DOUBLE_PINYIN_ZRM        = 1,
-    DOUBLE_PINYIN_MS         = 2,
-    DOUBLE_PINYIN_ZIGUANG    = 3,
-    DOUBLE_PINYIN_ABC        = 4,
-    DOUBLE_PINYIN_PYJJ       = 6,
-    DOUBLE_PINYIN_XHE        = 7,
-    DOUBLE_PINYIN_CUSTOMIZED = 30,        /* for user's keyboard */
-    DOUBLE_PINYIN_DEFAULT    = DOUBLE_PINYIN_MS
-};
-
-/**
- * @brief enums of Chewing Schemes.
- */
-enum ChewingScheme
-{
-    CHEWING_STANDARD = 1,
-    CHEWING_IBM      = 2,
-    CHEWING_GINYIEH  = 3,
-    CHEWING_ETEN     = 4,
-    CHEWING_DEFAULT  = CHEWING_STANDARD
-};
 
 
 /** Note: The parsed pinyins are stored in the following two
@@ -65,21 +39,21 @@ enum ChewingScheme
  *    As the chewing large table only contains information of struct ChewingKey.
  */
 
-struct ChewingKey
+struct _ChewingKey
 {
     guint16 m_initial : 5;
     guint16 m_middle  : 2;
     guint16 m_final   : 5;
     guint16 m_tone    : 3;
 
-    ChewingKey() {
+    _ChewingKey() {
         m_initial = CHEWING_ZERO_INITIAL;
         m_middle  = CHEWING_ZERO_MIDDLE;
         m_final   = CHEWING_ZERO_FINAL;
         m_tone    = CHEWING_ZERO_TONE;
     }
 
-    ChewingKey(ChewingInitial initial, ChewingMiddle middle,
+    _ChewingKey(ChewingInitial initial, ChewingMiddle middle,
                ChewingFinal final) {
         m_initial = initial;
         m_middle = middle;
@@ -92,8 +66,12 @@ public:
 
     /* Note: the return value should be freed by g_free. */
     gchar * get_pinyin_string();
+    gchar * get_shengmu_string();
+    gchar * get_yunmu_string();
     gchar * get_chewing_string();
 };
+
+typedef struct _ChewingKey ChewingKey;
 
 static inline bool operator == (ChewingKey lhs, ChewingKey rhs) {
     if (lhs.m_initial != rhs.m_initial)
@@ -107,7 +85,7 @@ static inline bool operator == (ChewingKey lhs, ChewingKey rhs) {
     return true;
 }
 
-struct ChewingKeyRest
+struct _ChewingKeyRest
 {
     /* Note: the table index is removed,
      *   Please use get_table_index in ChewingKey.
@@ -115,7 +93,7 @@ struct ChewingKeyRest
     guint16 m_raw_begin;           /* the begin of the raw input. */
     guint16 m_raw_end;             /* the end of the raw input. */
 
-    ChewingKeyRest() {
+    _ChewingKeyRest() {
         /* the 0th item in pinyin parser table is reserved for invalid. */
         m_raw_begin = 0;
         m_raw_end = 0;
@@ -126,6 +104,8 @@ struct ChewingKeyRest
     }
 };
 
-};
+typedef struct _ChewingKeyRest ChewingKeyRest;
+
+G_END_DECLS
 
 #endif

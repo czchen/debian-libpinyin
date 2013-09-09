@@ -27,74 +27,67 @@
 #include "pinyin_internal.h"
 #include "utils_helper.h"
 
-void print_help(){
-    printf("Usage: gen_ngram [--skip-pi-gram-training]\n");
-    printf("                 [--bigram-file <FILENAME>]\n");
-}
+static gboolean train_pi_gram = TRUE;
+static const gchar * bigram_filename = SYSTEM_BIGRAM;
+
+static GOptionEntry entries[] =
+{
+    {"skip-pi-gram-training", 0, G_OPTION_FLAG_REVERSE, G_OPTION_ARG_NONE, &train_pi_gram, "skip pi-gram training", NULL},
+    {"bigram-file", 0, 0, G_OPTION_ARG_FILENAME, &bigram_filename, "bi-gram file", NULL},
+    {NULL}
+};
 
 int main(int argc, char * argv[]){
-    int i = 1;
-    bool train_pi_gram = true;
-    const char * bigram_filename = "bigram.db";
+    FILE * input = stdin;
 
     setlocale(LC_ALL, "");
-    while ( i < argc ){
-	if ( strcmp("--help", argv[i]) == 0){
-	    print_help();
-            exit(0);
-	}else if ( strcmp("--skip-pi-gram-training", argv[i]) == 0 ){
-	    train_pi_gram = false;
-	}else if ( strcmp("--bigram-file", argv[i]) == 0){
-            if ( ++i >= argc ) {
-                print_help();
-                exit(EINVAL);
-            }
-            bigram_filename = argv[i];
-	}else{
-            print_help();
-            exit(EINVAL);
-        }
-	++i;
+
+    GError * error = NULL;
+    GOptionContext * context;
+
+    context = g_option_context_new("- generate n-gram");
+    g_option_context_add_main_entries(context, entries, NULL);
+    if (!g_option_context_parse(context, &argc, &argv, &error)) {
+        g_print("option parsing failed:%s\n", error->message);
+        exit(EINVAL);
     }
-    
+
+    SystemTableInfo system_table_info;
+
+    bool retval = system_table_info.load(SYSTEM_TABLE_INFO);
+    if (!retval) {
+        fprintf(stderr, "load table.conf failed.\n");
+        exit(ENOENT);
+    }
+
     PhraseLargeTable2 phrase_table;
     /* init phrase table */
     MemoryChunk * chunk = new MemoryChunk;
-    chunk->load("phrase_index.bin");
+    chunk->load(SYSTEM_PHRASE_INDEX);
     phrase_table.load(chunk);
 
     FacadePhraseIndex phrase_index;
-    if (!load_phrase_index(&phrase_index))
+
+    const pinyin_table_info_t * phrase_files =
+        system_table_info.get_table_info();
+
+    if (!load_phrase_index(phrase_files, &phrase_index))
         exit(ENOENT);
     
     Bigram bigram;
     bigram.attach(bigram_filename, ATTACH_CREATE|ATTACH_READWRITE);
 
-    PhraseTokens tokens;
-    memset(tokens, 0, sizeof(PhraseTokens));
-    phrase_index.prepare_tokens(tokens);
-    
-    char* linebuf = NULL;
-    size_t size = 0;
+    char* linebuf = NULL; size_t size = 0;
     phrase_token_t last_token, cur_token = last_token = 0;
-    while( getline(&linebuf, &size, stdin) ){
-	if ( feof(stdin) )
+    while( getline(&linebuf, &size, input) ){
+	if ( feof(input) )
 	    break;
-        linebuf[strlen(linebuf)-1] = '\0';
 
-        glong phrase_len = 0;
-        ucs4_t * phrase = g_utf8_to_ucs4(linebuf, -1, NULL, &phrase_len, NULL);
-
-	phrase_token_t token = null_token;
-        if ( 0 != phrase_len ) {
-            phrase_index.clear_tokens(tokens);
-            int result = phrase_table.search(phrase_len, phrase, tokens);
-            int num = get_first_token(tokens, token);
-            if ( !(result & SEARCH_OK) )
-                token = null_token;
-            g_free(phrase);
-            phrase = NULL;
+        if ( '\n' == linebuf[strlen(linebuf) - 1] ) {
+            linebuf[strlen(linebuf) - 1] = '\0';
         }
+
+        TAGLIB_PARSE_SEGMENTED_LINE(&phrase_index, token, linebuf);
 
 	last_token = cur_token;
 	cur_token = token;
@@ -134,10 +127,9 @@ int main(int argc, char * argv[]){
         delete single_gram;
     }
 
-    phrase_index.destroy_tokens(tokens);
     free(linebuf);
     
-    if (!save_phrase_index(&phrase_index))
+    if (!save_phrase_index(phrase_files, &phrase_index))
         exit(ENOENT);
 
     return 0;

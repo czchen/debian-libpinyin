@@ -48,13 +48,16 @@ public:
     bool store(MemoryChunk * new_chunk, table_offset_t offset, table_offset_t & end);
 
     /* search method */
-    int search(int phrase_length, /* in */ ucs4_t phrase[],
+    int search(int phrase_length, /* in */ const ucs4_t phrase[],
                /* out */ PhraseTokens tokens) const;
 
     /* add_index/remove_index method */
-    int add_index(int phrase_length, /* in */ ucs4_t phrase[], /* in */ phrase_token_t token);
+    int add_index(int phrase_length, /* in */ const ucs4_t phrase[], /* in */ phrase_token_t token);
 
-    int remove_index(int phrase_length, /* in */ ucs4_t phrase[], /* in */ phrase_token_t token);
+    int remove_index(int phrase_length, /* in */ const ucs4_t phrase[], /* in */ phrase_token_t token);
+
+    /* mask out method */
+    bool mask_out(phrase_token_t mask, phrase_token_t value);
 };
 
 
@@ -93,40 +96,58 @@ public:
     bool load_text(FILE * file);
 
     /* search method */
-    int search(int phrase_length, /* in */ ucs4_t phrase[],
+    int search(int phrase_length, /* in */ const ucs4_t phrase[],
                /* out */ PhraseTokens tokens) const {
         return m_bitmap_table.search(phrase_length, phrase, tokens);
     }
 
     /* add_index/remove_index method */
-    int add_index(int phrase_length, /* in */ ucs4_t phrase[], /* in */ phrase_token_t token) {
+    int add_index(int phrase_length, /* in */ const ucs4_t phrase[], /* in */ phrase_token_t token) {
         return m_bitmap_table.add_index(phrase_length, phrase, token);
     }
 
-    int remove_index(int phrase_length, /* in */ ucs4_t phrase[], /* in */ phrase_token_t token) {
+    int remove_index(int phrase_length, /* in */ const ucs4_t phrase[], /* in */ phrase_token_t token) {
         return m_bitmap_table.remove_index(phrase_length, phrase, token);
+    }
+
+    /* mask out method */
+    bool mask_out(phrase_token_t mask, phrase_token_t value) {
+        return m_bitmap_table.mask_out(mask, value);
     }
 };
 
-/* for compatibility. */
-static inline int get_first_token(PhraseTokens tokens,
-                                  /* out */ phrase_token_t & token){
-    int num = 0; token = null_token;
+
+static inline int reduce_tokens(const PhraseTokens tokens,
+                                TokenVector tokenarray) {
+    int num = 0;
+    g_array_set_size(tokenarray, 0);
 
     for (size_t i = 0; i < PHRASE_INDEX_LIBRARY_COUNT; ++i) {
         GArray * array = tokens[i];
-        if (NULL == array || 0 == array->len)
+        if (NULL == array)
             continue;
 
         num += array->len;
 
-        if (null_token == token) {
-            token = g_array_index(array, phrase_token_t, 0);
-        }
+        g_array_append_vals(tokenarray, array->data, array->len);
     }
 
     /* the following line will be removed in future after code are verified. */
-    assert(0 == num || 1 == num);
+    assert(0 <= num && num <= 4);
+
+    return num;
+}
+
+/* for compatibility. */
+static inline int get_first_token(const PhraseTokens tokens,
+                                  /* out */ phrase_token_t & token){
+    token = null_token;
+
+    TokenVector tokenarray = g_array_new(FALSE, FALSE, sizeof(phrase_token_t));
+    int num = reduce_tokens(tokens, tokenarray);
+    if (num)
+        token = g_array_index(tokenarray, phrase_token_t, 0);
+    g_array_free(tokenarray, TRUE);
 
     return num;
 }

@@ -72,7 +72,7 @@ static bool check_chewing_options(pinyin_option_t options, const chewing_index_i
 }
 
 
-gint ChewingKey::get_table_index() {
+gint _ChewingKey::get_table_index() {
     assert(m_initial <  CHEWING_NUMBER_OF_INITIALS);
     assert(m_middle < CHEWING_NUMBER_OF_MIDDLES);
     assert(m_final < CHEWING_NUMBER_OF_FINALS);
@@ -81,7 +81,7 @@ gint ChewingKey::get_table_index() {
     return index == -1 ? 0 : index;
 }
 
-gchar * ChewingKey::get_pinyin_string() {
+gchar * _ChewingKey::get_pinyin_string() {
     assert(m_tone < CHEWING_NUMBER_OF_TONES);
     gint index = get_table_index();
     assert(index < G_N_ELEMENTS(content_table));
@@ -94,7 +94,21 @@ gchar * ChewingKey::get_pinyin_string() {
     }
 }
 
-gchar * ChewingKey::get_chewing_string() {
+gchar * _ChewingKey::get_shengmu_string() {
+    gint index = get_table_index();
+    assert(index < G_N_ELEMENTS(content_table));
+    const content_table_item_t & item = content_table[index];
+    return g_strdup(item.m_shengmu_str);
+}
+
+gchar * _ChewingKey::get_yunmu_string() {
+    gint index = get_table_index();
+    assert(index < G_N_ELEMENTS(content_table));
+    const content_table_item_t & item = content_table[index];
+    return g_strdup(item.m_yunmu_str);
+}
+
+gchar * _ChewingKey::get_chewing_string() {
     assert(m_tone < CHEWING_NUMBER_OF_TONES);
     gint index = get_table_index();
     assert(index < G_N_ELEMENTS(content_table));
@@ -668,7 +682,7 @@ bool DoublePinyinParser2::parse_one_key(pinyin_option_t options,
         const char * sheng = m_shengmu_table[charid].m_shengmu;
         if (NULL == sheng)
             return false;
-        if (strcmp(sheng, "'") == 0)
+        if (0 == strcmp(sheng, "'"))
             sheng = "";
 
         /* parse yunmu here. */
@@ -676,33 +690,49 @@ bool DoublePinyinParser2::parse_one_key(pinyin_option_t options,
         if (!IS_KEY(ch))
             return false;
 
-        charid = ch == ';' ? 26 : ch - 'a';
-        /* first yunmu */
-        const char * yun = m_yunmu_table[charid].m_yunmus[0];
-        if (NULL == yun)
-            return false;
+        gchar * pinyin = NULL;
+        do {
 
-        gchar * pinyin = g_strdup_printf("%s%s", sheng, yun);
-        if (search_pinyin_index(options, pinyin, key)) {
-            key.m_tone = tone;
+            charid = ch == ';' ? 26 : ch - 'a';
+            /* first yunmu */
+            const char * yun = m_yunmu_table[charid].m_yunmus[0];
+            if (NULL == yun)
+                break;
+
+            pinyin = g_strdup_printf("%s%s", sheng, yun);
+            if (search_pinyin_index(options, pinyin, key)) {
+                key.m_tone = tone;
+                g_free(pinyin);
+                return true;
+            }
             g_free(pinyin);
-            return true;
-        }
-        g_free(pinyin);
 
-        /* second yunmu */
-        yun = m_yunmu_table[charid].m_yunmus[1];
-        if (NULL == yun)
-            return false;
+            /* second yunmu */
+            yun = m_yunmu_table[charid].m_yunmus[1];
+            if (NULL == yun)
+                break;
 
-        pinyin = g_strdup_printf("%s%s", sheng, yun);
-        if (search_pinyin_index(options, pinyin, key)) {
-            key.m_tone = tone;
+            pinyin = g_strdup_printf("%s%s", sheng, yun);
+            if (search_pinyin_index(options, pinyin, key)) {
+                key.m_tone = tone;
+                g_free(pinyin);
+                return true;
+            }
             g_free(pinyin);
-            return true;
-        }
-        g_free(pinyin);
+        } while(0);
 
+#if 1
+        /* support two letter yunmu from full pinyin */
+        if (0 == strcmp(sheng, "")) {
+            pinyin = g_strndup(str, 2);
+            if (search_pinyin_index(options, pinyin, key)) {
+                key.m_tone = tone;
+                g_free(pinyin);
+                return true;
+            }
+            g_free(pinyin);
+        }
+#endif
     }
 
     return false;

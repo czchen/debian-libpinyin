@@ -26,9 +26,10 @@
 
 using namespace pinyin;
 
-const gfloat PinyinLookup2::bigram_lambda = LAMBDA_PARAMETER;
-const gfloat PinyinLookup2::unigram_lambda = 1 - LAMBDA_PARAMETER;
-
+/*
+const gfloat PinyinLookup2::bigram_lambda = lambda;
+const gfloat PinyinLookup2::unigram_lambda = 1 - lambda;
+*/
 
 /* internal definition */
 static const size_t nbeam = 32;
@@ -184,11 +185,15 @@ static void clear_steps(GPtrArray * steps_index, GPtrArray * steps_content){
 }
 
 
-PinyinLookup2::PinyinLookup2(pinyin_option_t options,
+PinyinLookup2::PinyinLookup2(const gfloat lambda,
+                             pinyin_option_t options,
                              FacadeChewingTable * pinyin_table,
                              FacadePhraseIndex * phrase_index,
                              Bigram * system_bigram,
-                             Bigram * user_bigram){
+                             Bigram * user_bigram)
+    : bigram_lambda(lambda),
+      unigram_lambda(1. - lambda)
+{
     m_options = options;
     m_pinyin_table = pinyin_table;
     m_phrase_index = phrase_index;
@@ -197,6 +202,10 @@ PinyinLookup2::PinyinLookup2(pinyin_option_t options,
 
     m_steps_index = g_ptr_array_new();
     m_steps_content = g_ptr_array_new();
+
+    /* the member variables below are saved in get_best_match call. */
+    m_keys = NULL;
+    m_constraints = NULL;
 }
 
 PinyinLookup2::~PinyinLookup2(){
@@ -530,7 +539,7 @@ bool PinyinLookup2::final_step(MatchResults & results){
 bool PinyinLookup2::train_result2(ChewingKeyVector keys,
                                   CandidateConstraints constraints,
                                   MatchResults results) {
-    const guint32 initial_seed = 23 * 15;
+    const guint32 initial_seed = 23 * 3;
     const guint32 expand_factor = 2;
     const guint32 unigram_factor = 7;
     const guint32 pinyin_factor = 1;
@@ -589,6 +598,7 @@ bool PinyinLookup2::train_result2(ChewingKeyVector keys,
                 assert(user->set_freq(*token, freq + seed));
                 assert(m_user_bigram->store(last_token, user));
             next:
+                assert(NULL != user);
                 if (user)
                     delete user;
             }

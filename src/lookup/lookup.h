@@ -28,6 +28,7 @@
  */
 
 #include "novel_types.h"
+#include <limits.h>
 
 namespace pinyin{
 
@@ -49,10 +50,7 @@ struct lookup_value_t{
 };
 
 
-class FacadeChewingTable;
-class FacadePhraseTable;
 class FacadePhraseIndex;
-class Bigram;
 
 
 /* Note:
@@ -74,6 +72,7 @@ typedef GArray * LookupStepContent; /* array of lookup_value_t */
 bool convert_to_utf8(FacadePhraseIndex * phrase_index,
                      MatchResults match_results,
                      /* in */ const char * delimiter,
+                     /* in */ bool show_tokens,
                      /* out */ char * & result_string);
 
 };

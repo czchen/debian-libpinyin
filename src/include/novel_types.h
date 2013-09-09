@@ -27,10 +27,9 @@
 #ifndef NOVEL_TYPES_H
 #define NOVEL_TYPES_H
 
-#include <limits.h>
 #include <glib.h>
 
-namespace pinyin{
+G_BEGIN_DECLS
 
 typedef guint32 phrase_token_t;
 typedef gunichar ucs4_t;
@@ -62,10 +61,10 @@ typedef GArray * PhraseIndexRanges[PHRASE_INDEX_LIBRARY_COUNT];
 /* Array of Token */
 typedef GArray * PhraseTokens[PHRASE_INDEX_LIBRARY_COUNT];
 
+
 /* 
  *  PinYin Table Definition
  */
-class MemoryChunk;
 
 
 /* For both PinYin Table and Phrase Table */
@@ -86,7 +85,8 @@ enum ErrorResult{
     ERROR_OUT_OF_RANGE,          /* beyond the end of the sub phrase index */
     ERROR_FILE_CORRUPTION,       /* file is corrupted */
     ERROR_INTEGER_OVERFLOW,      /* integer is overflowed */
-    ERROR_ALREADY_EXISTS         /* the sub phrase already exists. */
+    ERROR_ALREADY_EXISTS,        /* the sub phrase already exists. */
+    ERROR_NO_USER_TABLE          /* the user table is not loaded. */
 };
 
 /* For N-gram */
@@ -129,8 +129,6 @@ typedef guint32 table_offset_t;
 
 typedef double parameter_t;
 
-#define LAMBDA_PARAMETER 0.330642
-
 /* Array of ChewingKey/ChewingKeyRest */
 typedef GArray * ChewingKeyVector;
 typedef GArray * ChewingKeyRestVector;
@@ -144,6 +142,14 @@ typedef GArray * CandidateConstraints;
 
 typedef guint32 pinyin_option_t;
 
-};
+typedef enum {
+    RESERVED = 0,
+    GB_DICTIONARY = 1,
+    GBK_DICTIONARY = 2,
+    MERGED_DICTIONARY = 3,
+    USER_DICTIONARY = 15
+} PHRASE_INDEX_LIBRARIES;
+
+G_END_DECLS
 
 #endif

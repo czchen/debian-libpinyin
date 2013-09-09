@@ -24,28 +24,36 @@
 #include "pinyin_internal.h"
 #include "utils_helper.h"
 
-void print_help(){
-    printf("Usage: gen_binary_files --table-dir <DIRNAME>\n");
-}
+static const gchar * table_dir = ".";
+
+static GOptionEntry entries[] =
+{
+    {"table-dir", 0, 0, G_OPTION_ARG_FILENAME, &table_dir, "table directory", NULL},
+    {NULL}
+};
 
 int main(int argc, char * argv[]){
-    int i = 1;
-    const char * table_dir = ".";
-
     setlocale(LC_ALL, "");
-    while ( i < argc ){
-        if ( strcmp("--help", argv[i]) == 0 ){
-            print_help();
-            exit(0);
-        } else if ( strcmp("--table-dir", argv[i]) == 0){
-            if ( ++i >= argc ){
-                print_help();
-                exit(EINVAL);
-            }
-            table_dir = argv[i];
-        }
-        ++i;
+
+    GError * error = NULL;
+    GOptionContext * context;
+
+    context = g_option_context_new("- generate binary files");
+    g_option_context_add_main_entries(context, entries, NULL);
+    if (!g_option_context_parse(context, &argc, &argv, &error)) {
+        g_print("option parsing failed:%s\n", error->message);
+        exit(EINVAL);
     }
+
+    SystemTableInfo system_table_info;
+
+    gchar * filename = g_build_filename(table_dir, SYSTEM_TABLE_INFO, NULL);
+    bool retval = system_table_info.load(filename);
+    if (!retval) {
+        fprintf(stderr, "load table.conf failed.\n");
+        exit(ENOENT);
+    }
+    g_free(filename);
 
     /* generate pinyin index*/
     pinyin_option_t options = USE_TONE;
@@ -54,15 +62,21 @@ int main(int argc, char * argv[]){
 
     /* generate phrase index */
     FacadePhraseIndex phrase_index;
-    for (size_t i = 0; i < PHRASE_INDEX_LIBRARY_COUNT; ++i) {
-        const pinyin_table_info_t * table_info = pinyin_phrase_files + i;
 
-        if (SYSTEM_FILE != table_info->m_file_type)
+    const pinyin_table_info_t * phrase_files =
+        system_table_info.get_table_info();
+
+    for (size_t i = 0; i < PHRASE_INDEX_LIBRARY_COUNT; ++i) {
+        const pinyin_table_info_t * table_info = phrase_files + i;
+        assert(table_info->m_dict_index == i);
+
+        if (SYSTEM_FILE != table_info->m_file_type &&
+            DICTIONARY != table_info->m_file_type)
             continue;
 
         const char * tablename = table_info->m_table_filename;
 
-        gchar * filename = g_build_filename(table_dir, tablename, NULL);
+        filename = g_build_filename(table_dir, tablename, NULL);
         FILE * tablefile = fopen(filename, "r");
 
         if (NULL == tablefile) {
@@ -81,17 +95,20 @@ int main(int argc, char * argv[]){
 
     MemoryChunk * new_chunk = new MemoryChunk;
     chewing_table.store(new_chunk);
-    new_chunk->save("pinyin_index.bin");
+    new_chunk->save(SYSTEM_PINYIN_INDEX);
     chewing_table.load(new_chunk);
     
     new_chunk = new MemoryChunk;
     phrase_table.store(new_chunk);
-    new_chunk->save("phrase_index.bin");
+    new_chunk->save(SYSTEM_PHRASE_INDEX);
     phrase_table.load(new_chunk);
 
     phrase_index.compact();
 
-    if (!save_phrase_index(&phrase_index))
+    if (!save_phrase_index(phrase_files, &phrase_index))
+        exit(ENOENT);
+
+    if (!save_dictionary(phrase_files, &phrase_index))
         exit(ENOENT);
 
     return 0;
