@@ -114,42 +114,53 @@ bool do_one_test(PinyinLookup2 * pinyin_lookup,
 }
 
 int main(int argc, char * argv[]){
-    const char * evals_text = "evals.text";
+    const char * evals_text = "evals2.text";
+
+    SystemTableInfo system_table_info;
+
+    bool retval = system_table_info.load(SYSTEM_TABLE_INFO);
+    if (!retval) {
+        fprintf(stderr, "load table.conf failed.\n");
+        exit(ENOENT);
+    }
 
     pinyin_option_t options = USE_TONE;
     FacadeChewingTable largetable;
 
     MemoryChunk * chunk = new MemoryChunk;
-    chunk->load("pinyin_index.bin");
+    chunk->load(SYSTEM_PINYIN_INDEX);
     largetable.load(options, chunk, NULL);
 
     FacadePhraseTable2 phrase_table;
     chunk = new MemoryChunk;
-    chunk->load("phrase_index.bin");
+    chunk->load(SYSTEM_PHRASE_INDEX);
     phrase_table.load(chunk, NULL);
 
     FacadePhraseIndex phrase_index;
-    if (!load_phrase_index(&phrase_index))
+
+    const pinyin_table_info_t * phrase_files =
+        system_table_info.get_table_info();
+
+    if (!load_phrase_index(phrase_files, &phrase_index))
         exit(ENOENT);
 
     Bigram system_bigram;
-    system_bigram.attach("bigram.db", ATTACH_READONLY);
+    system_bigram.attach(SYSTEM_BIGRAM, ATTACH_READONLY);
     Bigram user_bigram;
     user_bigram.attach(NULL, ATTACH_CREATE|ATTACH_READWRITE);
 
-    PinyinLookup2 pinyin_lookup(options, &largetable, &phrase_index,
-                               &system_bigram, &user_bigram);
+    gfloat lambda = system_table_info.get_lambda();
 
-    /* open evals.text. */
+    PinyinLookup2 pinyin_lookup(lambda, options,
+                                &largetable, &phrase_index,
+                                &system_bigram, &user_bigram);
+
+    /* open evals text. */
     FILE * evals_file = fopen(evals_text, "r");
     if ( NULL == evals_file ) {
         fprintf(stderr, "Can't open file:%s\n", evals_text);
         exit(ENOENT);
     }
-
-    PhraseTokens phrase_tokens;
-    memset(phrase_tokens, 0, sizeof(PhraseTokens));
-    phrase_index.prepare_tokens(phrase_tokens);
 
     /* Evaluates the correction rate of test text documents. */
     size_t tested_count = 0; size_t passed_count = 0;
@@ -160,23 +171,12 @@ int main(int argc, char * argv[]){
     while( getline(&linebuf, &size, evals_file) ) {
         if ( feof(evals_file) )
             break;
-        if ( '\n' == linebuf[strlen(linebuf)-1] )
-            linebuf[strlen(linebuf)-1] = '\0';
 
-        glong phrase_len = 0;
-        ucs4_t * phrase = g_utf8_to_ucs4(linebuf, -1, NULL, &phrase_len, NULL);
-
-        token = null_token;
-        if ( 0 != phrase_len ) {
-            int result = phrase_table.search(phrase_len, phrase, phrase_tokens);
-            int num = get_first_token(phrase_tokens, token);
-
-            if ( !(result & SEARCH_OK) )
-                token = null_token;
-
-            g_free(phrase);
-            phrase = NULL;
+        if ( '\n' == linebuf[strlen(linebuf) - 1] ) {
+            linebuf[strlen(linebuf) - 1] = '\0';
         }
+
+        TAGLIB_PARSE_SEGMENTED_LINE(&phrase_index, token, linebuf);
 
         if ( null_token == token ) {
             if ( tokens->len ) { /* one test. */
@@ -206,8 +206,6 @@ int main(int argc, char * argv[]){
     g_array_free(tokens, TRUE);
     fclose(evals_file);
     free(linebuf);
-
-    phrase_index.destroy_tokens(phrase_tokens);
 
     return 0;
 }

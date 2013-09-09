@@ -120,7 +120,7 @@ public:
      * Search the phrase tokens according to the ucs4 characters.
      *
      */
-    int search(int phrase_length, /* in */ ucs4_t phrase[],
+    int search(int phrase_length, /* in */ const ucs4_t phrase[],
                /* out */ PhraseTokens tokens) const {
         /* clear tokens. */
         for (size_t i = 0; i < PHRASE_INDEX_LIBRARY_COUNT; ++i) {
@@ -151,10 +151,11 @@ public:
      * Add the phrase token to the user phrase table.
      *
      */
-    int add_index(int phrase_length, /* in */ ucs4_t phrase[],
+    int add_index(int phrase_length, /* in */ const ucs4_t phrase[],
                   /* in */ phrase_token_t token) {
         if (NULL == m_user_phrase_table)
-            return false;
+            return ERROR_NO_USER_TABLE;
+
         return m_user_phrase_table->add_index
             (phrase_length, phrase, token);
     }
@@ -169,12 +170,30 @@ public:
      * Remove the phrase token from the user phrase table.
      *
      */
-    int remove_index(int phrase_length, /* in */ ucs4_t phrase[],
+    int remove_index(int phrase_length, /* in */ const ucs4_t phrase[],
                      /* in */ phrase_token_t token) {
         if (NULL == m_user_phrase_table)
-            return false;
+            return ERROR_NO_USER_TABLE;
+
         return m_user_phrase_table->remove_index
             (phrase_length, phrase, token);
+    }
+
+    /**
+     * FacadePhraseTable2::mask_out:
+     * @mask: the mask.
+     * @value: the value.
+     * @returns: whether the mask out operation is successful.
+     *
+     * Mask out the matched phrase index.
+     *
+     */
+    bool mask_out(phrase_token_t mask, phrase_token_t value) {
+        if (NULL == m_user_phrase_table)
+            return false;
+
+        return m_user_phrase_table->mask_out
+            (mask, value);
     }
 };
 

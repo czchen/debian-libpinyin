@@ -16,40 +16,52 @@
 ## Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 
-textual_model_data	= interpolation.text \
-				gb_char.table gbk_char.table
+tablefiles		= gb_char.table gbk_char.table \
+				merged.table \
+				art.table culture.table economy.table \
+				geology.table history.table life.table \
+				nature.table scitech.table \
+				society.table sport.table
 
-binary_model_data	= gb_char.bin gbk_char.bin \
-				phrase_index.bin pinyin_index.bin \
-				bigram.db
+binfiles		= ${tablefiles:.table=.bin}
+
+
+textual_model_data	= interpolation2.text \
+				$(tablefiles)
+
+
+binary_model_data	= phrase_index.bin pinyin_index.bin \
+				bigram.db \
+				$(binfiles)
 
 
 MAINTAINERCLEANFILES	= Makefile.in
 
-EXTRA_DIST		= $(textual_model_data)
+EXTRA_DIST		= $(textual_model_data) \
+                          table.conf
 
-libpinyin_db_DATA 	= $(binary_model_data)
+libpinyin_db_DATA 	= $(binary_model_data) \
+                          table.conf
 
-libpinyin_dbdir		= $(pkgdatadir)/data
+libpinyin_dbdir		= $(libdir)/libpinyin/data
 
 CLEANFILES		= $(binary_model_data)
 
-interpolation.text:
-	wget http://downloads.sourceforge.net/libpinyin/model.text.tar.gz
-	tar xvf model.text.tar.gz -C $(top_srcdir)/data
+interpolation2.text:
+	wget http://downloads.sourceforge.net/libpinyin/models/model6.text.tar.gz
+	tar xvf model6.text.tar.gz -C $(top_srcdir)/data
 
 
-gb_char.table gbk_char.table: interpolation.text
+$(tablefiles): interpolation2.text
 
 bigram.db: $(textual_model_data)
 	$(RM) $(binary_model_data)
 	../utils/storage/gen_binary_files --table-dir $(top_srcdir)/data
-	../utils/storage/import_interpolation < $(top_srcdir)/data/interpolation.text
-	../utils/training/gen_unigram
+	../utils/storage/import_interpolation --table-dir $(top_srcdir)/data < $(top_srcdir)/data/interpolation2.text
+	../utils/training/gen_unigram --table-dir $(top_srcdir)/data
 
-gb_char.bin gbk_char.bin phrase_index.bin pinyin_index.bin: bigram.db
+phrase_index.bin pinyin_index.bin $(binfiles): bigram.db
 
-rebuild:
+modify:
 	git reset --hard
-	sed -i -e "s/#define LAMBDA_PARAMETER 0.330642/#define LAMBDA_PARAMETER $(LAMBDA_PARAMETER)/" ../src/include/novel_types.h
-	make -C .. >/dev/null 2>/dev/null
+	sed -i -r -e "s'lambda parameter:0\\.[0-9]{3,6}'lambda parameter:$(LAMBDA_PARAMETER)'" table.conf

@@ -23,13 +23,20 @@
 #ifndef UTILS_HELPER_H
 #define UTILS_HELPER_H
 
-#define TAGLIB_GET_VALUE(var, index)                                    \
+
+#define TAGLIB_GET_TOKEN(var, index)                                    \
     phrase_token_t var = null_token;                                    \
     {                                                                   \
         const char * string = (const char *) g_ptr_array_index          \
             (values, index);                                            \
-        var = taglib_string_to_token                                    \
-            (phrase_table, phrase_index, string);                       \
+        var = atoi(string);                                             \
+    }
+
+#define TAGLIB_GET_PHRASE_STRING(var, index)                            \
+    const char * var = NULL;                                            \
+    {                                                                   \
+        var = (const char *) g_ptr_array_index                          \
+            (values, index);                                            \
     }
 
 #define TAGLIB_GET_TAGVALUE(type, var, conv)                            \
@@ -41,11 +48,33 @@
         var = conv((const char *)value);                                \
     }
 
+#define TAGLIB_PARSE_SEGMENTED_LINE(phrase_index, var, line)            \
+    phrase_token_t var = null_token;                                    \
+    do {                                                                \
+        if (0 == strlen(line))                                          \
+            break;                                                      \
+                                                                        \
+        gchar ** strs = g_strsplit_set(line, " \t", 2);                 \
+        if (2 != g_strv_length(strs))                                   \
+            assert(false);                                              \
+                                                                        \
+        phrase_token_t _token = atoi(strs[0]);                          \
+        const char * phrase = strs[1];                                  \
+        if (null_token != _token)                                       \
+            assert(taglib_validate_token_with_string                    \
+                   (phrase_index, _token, phrase));                     \
+                                                                        \
+        var = _token;                                                   \
+                                                                        \
+        g_strfreev(strs);                                               \
+    } while(false);
 
-static bool load_phrase_index(FacadePhraseIndex * phrase_index) {
+
+static bool load_phrase_index(const pinyin_table_info_t * phrase_files,
+                              FacadePhraseIndex * phrase_index) {
     MemoryChunk * chunk = NULL;
     for (size_t i = 0; i < PHRASE_INDEX_LIBRARY_COUNT; ++i) {
-        const pinyin_table_info_t * table_info = pinyin_phrase_files + i;
+        const pinyin_table_info_t * table_info = phrase_files + i;
 
         if (SYSTEM_FILE != table_info->m_file_type)
             continue;
@@ -56,6 +85,7 @@ static bool load_phrase_index(FacadePhraseIndex * phrase_index) {
         bool retval = chunk->load(binfile);
         if (!retval) {
             fprintf(stderr, "load %s failed!\n", binfile);
+            delete chunk;
             return false;
         }
 
@@ -64,10 +94,11 @@ static bool load_phrase_index(FacadePhraseIndex * phrase_index) {
     return true;
 }
 
-static bool save_phrase_index(FacadePhraseIndex * phrase_index) {
+static bool save_phrase_index(const pinyin_table_info_t * phrase_files,
+                              FacadePhraseIndex * phrase_index) {
     MemoryChunk * new_chunk = NULL;
     for (size_t i = 0; i < PHRASE_INDEX_LIBRARY_COUNT; ++i) {
-        const pinyin_table_info_t * table_info = pinyin_phrase_files + i;
+        const pinyin_table_info_t * table_info = phrase_files + i;
 
         if (SYSTEM_FILE != table_info->m_file_type)
             continue;
@@ -79,6 +110,32 @@ static bool save_phrase_index(FacadePhraseIndex * phrase_index) {
         bool retval = new_chunk->save(binfile);
         if (!retval) {
             fprintf(stderr, "save %s failed.", binfile);
+            delete new_chunk;
+            return false;
+        }
+
+        phrase_index->load(i, new_chunk);
+    }
+    return true;
+}
+
+static bool save_dictionary(const pinyin_table_info_t * phrase_files,
+                            FacadePhraseIndex * phrase_index) {
+    MemoryChunk * new_chunk = NULL;
+    for (size_t i = 0; i < PHRASE_INDEX_LIBRARY_COUNT; ++i) {
+        const pinyin_table_info_t * table_info = phrase_files + i;
+
+        if (DICTIONARY != table_info->m_file_type)
+            continue;
+
+        const char * binfile = table_info->m_system_filename;
+
+        new_chunk = new MemoryChunk;
+        phrase_index->store(i, new_chunk);
+        bool retval = new_chunk->save(binfile);
+        if (!retval) {
+            fprintf(stderr, "save %s failed.", binfile);
+            delete new_chunk;
             return false;
         }
 

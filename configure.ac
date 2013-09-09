@@ -3,9 +3,9 @@
 
 
 m4_define([libpinyin_major_version], [0])
-m4_define([libpinyin_minor_version], [8])
-m4_define([libpinyin_micro_version], [1])
-m4_define([libpinyin_abi_current], [2])
+m4_define([libpinyin_minor_version], [9])
+m4_define([libpinyin_micro_version], [93])
+m4_define([libpinyin_abi_current], [4])
 m4_define([libpinyin_abi_revision], [0])
 
 m4_define([libpinyin_version],
@@ -40,10 +40,7 @@ AC_PROG_MAKE_SET
 AC_GNU_SOURCE
 
 # Init libtool
-AC_LIBTOOL_WIN32_DLL
-AC_LIBTOOL_DLOPEN
 AC_PROG_LIBTOOL
-AC_LIB_LTDL
 AC_SUBST(LIBTOOL_DEPS)
 
 # libtool option to control which symbols are exported
@@ -53,14 +50,6 @@ AC_SUBST(LIBTOOL_EXPORT_OPTIONS)
 
 # Checks for libraries.
 PKG_CHECK_MODULES(GLIB2, [glib-2.0 >= 2.4.0])
-
-GLIB2_CPPFLAGS=`$PKG_CONFIG --cflags glib-2.0`
-
-AC_SUBST(GLIB2_CPPFLAGS)
-
-GLIB2_LDFLAGS=`$PKG_CONFIG --libs glib-2.0`
-
-AC_SUBST(GLIB2_LDFLAGS)
 
 # Checks for header files.
 AC_HEADER_STDC
@@ -78,6 +67,7 @@ AC_FUNC_MALLOC
 AC_FUNC_MEMCMP
 AC_FUNC_REALLOC
 AC_FUNC_STAT
+AC_FUNC_MMAP
 AC_CHECK_FUNCS([gettimeofday memmove memset setlocale])
 
 AC_CHECK_HEADERS([libintl.h string.h])

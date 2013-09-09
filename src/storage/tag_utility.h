@@ -116,20 +116,6 @@ class FacadePhraseIndex;
 
 
 /**
- * taglib_string_to_token:
- * @phrase_table: the phrase table for token lookup.
- * @phrase_index: the phrase index to prepare PhraseTokens.
- * @string: the string of the phrase.
- * @returns: the phrase token found in phrase table.
- *
- * Translate one phrase into the token.
- *
- */
-phrase_token_t taglib_string_to_token(PhraseLargeTable2 * phrase_table,
-                                      FacadePhraseIndex * phrase_index,
-                                      const char * string);
-
-/**
  * taglib_token_to_string:
  * @phrase_index: the phrase index for phrase string lookup.
  * @token: the phrase token.
@@ -141,9 +127,22 @@ phrase_token_t taglib_string_to_token(PhraseLargeTable2 * phrase_table,
 char * taglib_token_to_string(FacadePhraseIndex * phrase_index,
                               phrase_token_t token);
 
-/* Note: the following function is only available when the optional tag exists.
- * bool taglib_report_status(int line_type);
+/**
+ * taglib_validate_token_with_string:
+ * @phrase_index: the phrase index.
+ * @token: the phrase token.
+ * @string: the phrase string.
+ * @returns: whether the token is validated with the phrase string.
+ *
+ * Validate the token with the phrase string.
+ *
  */
+bool taglib_validate_token_with_string(FacadePhraseIndex * phrase_index,
+                                       phrase_token_t token,
+                                       const char * string);
+
+/* Note: the following function is only available when the optional tag exists.
+   bool taglib_report_status(int line_type); */
 
 /* Note: taglib_write is omited, as printf is more suitable for this. */
 

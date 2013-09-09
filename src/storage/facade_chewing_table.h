@@ -139,7 +139,7 @@ public:
      * Search the phrase tokens according to the pinyin keys.
      *
      */
-    int search(int phrase_length, /* in */ ChewingKey keys[],
+    int search(int phrase_length, /* in */ const ChewingKey keys[],
                /* out */ PhraseIndexRanges ranges) const {
 
         /* clear ranges. */
@@ -171,10 +171,10 @@ public:
      * Add the phrase token to the user chewing table.
      *
      */
-    int add_index(int phrase_length, /* in */ ChewingKey keys[],
+    int add_index(int phrase_length, /* in */ const ChewingKey keys[],
                   /* in */ phrase_token_t token) {
         if (NULL == m_user_chewing_table)
-            return false;
+            return ERROR_NO_USER_TABLE;
         return m_user_chewing_table->add_index(phrase_length, keys, token);
     }
 
@@ -188,11 +188,26 @@ public:
      * Remove the phrase token from the user chewing table.
      *
      */
-    int remove_index(int phrase_length, /* in */ ChewingKey keys[],
+    int remove_index(int phrase_length, /* in */ const ChewingKey keys[],
                      /* in */ phrase_token_t token) {
         if (NULL == m_user_chewing_table)
-            return false;
+            return ERROR_NO_USER_TABLE;
         return m_user_chewing_table->remove_index(phrase_length, keys, token);
+    }
+
+    /**
+     * FacadeChewingTable::mask_out:
+     * @mask: the mask.
+     * @value: the value.
+     * @returns: whether the mask out operation is successful.
+     *
+     * Mask out the matched chewing index.
+     *
+     */
+    bool mask_out(phrase_token_t mask, phrase_token_t value) {
+        if (NULL == m_user_chewing_table)
+            return false;
+        return m_user_chewing_table->mask_out(mask, value);
     }
 };
 

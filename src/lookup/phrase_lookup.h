@@ -43,8 +43,8 @@ namespace pinyin{
  */
 class PhraseLookup{
 private:
-    static const gfloat bigram_lambda;
-    static const gfloat unigram_lambda;
+    const gfloat bigram_lambda;
+    const gfloat unigram_lambda;
 
     PhraseItem m_cache_phrase_item;
     SingleGram m_merged_single_gram;
@@ -81,6 +81,7 @@ protected:
 public:
     /**
      * PhraseLookup::PhraseLookup:
+     * @lambda: the lambda parameter for interpolation model.
      * @phrase_table: the phrase table.
      * @phrase_index: the phrase index.
      * @system_bigram: the system bi-gram.
@@ -89,7 +90,8 @@ public:
      * The constructor of the PhraseLookup.
      *
      */
-    PhraseLookup(FacadePhraseTable2 * phrase_table,
+    PhraseLookup(const gfloat lambda,
+                 FacadePhraseTable2 * phrase_table,
                  FacadePhraseIndex * phrase_index,
                  Bigram * system_bigram,
                  Bigram * user_bigram);
@@ -119,7 +121,6 @@ public:
     /**
      * PhraseLookup::convert_to_utf8:
      * @results: the guessed sentence in the form of phrase tokens.
-     * @delimiter: the delimiter between the phrases.
      * @result_string: the converted sentence in utf8 string.
      * @returns: whether the convert operation is successful.
      *
@@ -129,11 +130,10 @@ public:
      *
      */
     bool convert_to_utf8(MatchResults results,
-                         /* in */ const char * delimiter,
                          /* out */ char * & result_string)
     {
         return pinyin::convert_to_utf8(m_phrase_index, results,
-                                       delimiter, result_string);
+                                       "\n", true, result_string);
     }
 };
 

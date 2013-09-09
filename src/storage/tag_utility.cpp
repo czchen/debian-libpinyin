@@ -308,6 +308,8 @@ bool taglib_fini(){
     return true;
 }
 
+#if 0
+
 static phrase_token_t taglib_special_string_to_token(const char * string){
     struct token_pair{
         phrase_token_t token;
@@ -355,6 +357,8 @@ phrase_token_t taglib_string_to_token(PhraseLargeTable2 * phrase_table,
     return token;
 }
 
+#endif
+
 static const char * taglib_special_token_to_string(phrase_token_t token){
     struct token_pair{
         phrase_token_t token;
@@ -399,5 +403,18 @@ char * taglib_token_to_string(FacadePhraseIndex * phrase_index,
     phrase = g_ucs4_to_utf8(buffer, length, NULL, NULL, NULL);
     return phrase;
 }
+
+bool taglib_validate_token_with_string(FacadePhraseIndex * phrase_index,
+                                       phrase_token_t token,
+                                       const char * string){
+    bool result = false;
+
+    char * str = taglib_token_to_string(phrase_index, token);
+    result = (0 == strcmp(str, string));
+    g_free(str);
+
+    return result;
+}
+
 
 };

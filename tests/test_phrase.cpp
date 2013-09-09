@@ -21,6 +21,7 @@
 
 
 #include "pinyin.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -42,17 +43,18 @@ int main(int argc, char * argv[]){
             break;
 
         pinyin_phrase_segment(instance, linebuf);
-        MatchResults & tokens = instance->m_match_results;
+        guint len = 0;
+        pinyin_get_n_phrase(instance, &len);
 
-        for ( size_t i = 0; i < tokens->len; ++i ){
-            phrase_token_t token = g_array_index
-                (tokens, phrase_token_t, i);
+        for ( size_t i = 0; i < len; ++i ){
+            phrase_token_t token = null_token;
+            pinyin_get_phrase_token(instance, i, &token);
 
             if ( null_token == token )
                 continue;
 
             char * word = NULL;
-            pinyin_translate_token(instance, token, &word);
+            pinyin_token_get_phrase(instance, token, NULL, &word);
             printf("%s\t", word);
             g_free(word);
         }
@@ -62,7 +64,11 @@ int main(int argc, char * argv[]){
     }
 
     pinyin_free_instance(instance);
+
+    pinyin_mask_out(context, 0x0, 0x0);
+    pinyin_save(context);
     pinyin_fini(context);
+
     free(linebuf);
     return 0;
 }

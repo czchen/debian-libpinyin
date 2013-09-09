@@ -25,6 +25,23 @@
 #include "pinyin_internal.h"
 #include "utils_helper.h"
 
+
+void print_help(){
+    printf("Usage: ngseg [--generate-extra-enter]  [-o outputfile] [inputfile]\n");
+}
+
+
+static gboolean gen_extra_enter = FALSE;
+static gchar * outputfile = NULL;
+
+static GOptionEntry entries[] =
+{
+    {"outputfile", 'o', 0, G_OPTION_ARG_FILENAME, &outputfile, "output", "filename"},
+    {"generate-extra-enter", 0, 0, G_OPTION_ARG_NONE, &gen_extra_enter, "generate ", NULL},
+    {NULL}
+};
+
+
 /* n-gram based sentence segment. */
 
 /* Note:
@@ -44,21 +61,18 @@ enum CONTEXT_STATE{
     CONTEXT_UNKNOWN
 };
 
-void print_help(){
-    printf("Usage: ngseg [--generate-extra-enter]\n");
-}
-
 bool deal_with_segmentable(PhraseLookup * phrase_lookup,
-                           GArray * current_ucs4){
+                           GArray * current_ucs4,
+                           FILE * output){
     char * result_string = NULL;
     MatchResults results = g_array_new(FALSE, FALSE, sizeof(phrase_token_t));
     phrase_lookup->get_best_match(current_ucs4->len,
                                   (ucs4_t *) current_ucs4->data, results);
 
-    phrase_lookup->convert_to_utf8(results, "\n", result_string);
+    phrase_lookup->convert_to_utf8(results, result_string);
 
     if (result_string) {
-        printf("%s\n", result_string);
+        fprintf(output, "%s\n", result_string);
     } else {
         char * tmp_string = g_ucs4_to_utf8
             ( (ucs4_t *) current_ucs4->data, current_ucs4->len,
@@ -73,53 +87,86 @@ bool deal_with_segmentable(PhraseLookup * phrase_lookup,
     return true;
 }
 
-bool deal_with_unknown(GArray * current_ucs4){
+bool deal_with_unknown(GArray * current_ucs4, FILE * output){
     char * result_string = g_ucs4_to_utf8
         ( (ucs4_t *) current_ucs4->data, current_ucs4->len,
           NULL, NULL, NULL);
-    printf("%s\n", result_string);
+    fprintf(output, "%d %s\n", null_token, result_string);
     g_free(result_string);
     return true;
 }
 
 
 int main(int argc, char * argv[]){
-    int i = 1;
-    bool gen_extra_enter = false;
+    FILE * input = stdin;
+    FILE * output = stdout;
 
     setlocale(LC_ALL, "");
-    /* deal with options */
-    while ( i < argc ){
-        if ( strcmp ("--help", argv[i]) == 0 ){
-            print_help();
-            exit(0);
-        } else if ( strcmp("--generate-extra-enter", argv[i]) == 0 ){
-            gen_extra_enter = true;
-        } else {
-            print_help();
+
+    GError * error = NULL;
+    GOptionContext * context;
+
+    context = g_option_context_new("- n-gram segment");
+    g_option_context_add_main_entries(context, entries, NULL);
+    if (!g_option_context_parse(context, &argc, &argv, &error)) {
+        g_print("option parsing failed:%s\n", error->message);
+        exit(EINVAL);
+    }
+
+    if (outputfile) {
+        output = fopen(outputfile, "w");
+        if (NULL == output) {
+            perror("open file failed");
             exit(EINVAL);
         }
-        ++i;
+    }
+
+    if (argc > 2) {
+        fprintf(stderr, "too many arguments.\n");
+        exit(EINVAL);
+    }
+
+    if (2 == argc) {
+        input = fopen(argv[1], "r");
+        if (NULL == input) {
+            perror("open file failed");
+            exit(EINVAL);
+        }
+    }
+
+    SystemTableInfo system_table_info;
+
+    bool retval = system_table_info.load(SYSTEM_TABLE_INFO);
+    if (!retval) {
+        fprintf(stderr, "load table.conf failed.\n");
+        exit(ENOENT);
     }
 
     /* init phrase table */
     FacadePhraseTable2 phrase_table;
     MemoryChunk * chunk = new MemoryChunk;
-    chunk->load("phrase_index.bin");
+    chunk->load(SYSTEM_PHRASE_INDEX);
     phrase_table.load(chunk, NULL);
 
     /* init phrase index */
     FacadePhraseIndex phrase_index;
-    if (!load_phrase_index(&phrase_index))
+
+    const pinyin_table_info_t * phrase_files =
+        system_table_info.get_table_info();
+
+    if (!load_phrase_index(phrase_files, &phrase_index))
         exit(ENOENT);
 
     /* init bi-gram */
     Bigram system_bigram;
-    system_bigram.attach("bigram.db", ATTACH_READONLY);
+    system_bigram.attach(SYSTEM_BIGRAM, ATTACH_READONLY);
     Bigram user_bigram;
 
+    gfloat lambda = system_table_info.get_lambda();
+
     /* init phrase lookup */
-    PhraseLookup phrase_lookup(&phrase_table, &phrase_index,
+    PhraseLookup phrase_lookup(lambda,
+                               &phrase_table, &phrase_index,
                                &system_bigram, &user_bigram);
 
 
@@ -132,7 +179,7 @@ int main(int argc, char * argv[]){
 
     /* split the sentence */
     char * linebuf = NULL; size_t size = 0; ssize_t read;
-    while( (read = getline(&linebuf, &size, stdin)) != -1 ){
+    while( (read = getline(&linebuf, &size, input)) != -1 ){
         if ( '\n' ==  linebuf[strlen(linebuf) - 1] ) {
             linebuf[strlen(linebuf) - 1] = '\0';
         }
@@ -143,13 +190,13 @@ int main(int argc, char * argv[]){
         ucs4_t * sentence = g_utf8_to_ucs4(linebuf, -1, NULL, &len, NULL);
         if ( len != num_of_chars ) {
             fprintf(stderr, "non-ucs4 characters encountered:%s.\n", linebuf);
-            printf("\n");
+            fprintf(output, "%d \n", null_token);
             continue;
         }
 
         /* only new-line persists. */
         if ( 0  == num_of_chars ) {
-            printf("\n");
+            fprintf(output, "%d \n", null_token);
             continue;
         }
 
@@ -175,10 +222,10 @@ int main(int argc, char * argv[]){
 
             assert ( state != next_state );
             if ( state == CONTEXT_SEGMENTABLE )
-                deal_with_segmentable(&phrase_lookup, current_ucs4);
+                deal_with_segmentable(&phrase_lookup, current_ucs4, output);
 
             if ( state == CONTEXT_UNKNOWN )
-                deal_with_unknown(current_ucs4);
+                deal_with_unknown(current_ucs4, output);
 
             /* save the current character */
             g_array_set_size(current_ucs4, 0);
@@ -189,22 +236,26 @@ int main(int argc, char * argv[]){
         if ( current_ucs4->len ) {
             /* this seems always true. */
             if ( state == CONTEXT_SEGMENTABLE )
-                deal_with_segmentable(&phrase_lookup, current_ucs4);
+                deal_with_segmentable(&phrase_lookup, current_ucs4, output);
 
             if ( state == CONTEXT_UNKNOWN )
-                deal_with_unknown(current_ucs4);
+                deal_with_unknown(current_ucs4, output);
             g_array_set_size(current_ucs4, 0);
         }
 
         /* print extra enter */
         if ( gen_extra_enter )
-            printf("\n");
+            fprintf(output, "%d \n", null_token);
+
+        g_free(sentence);
     }
     phrase_index.destroy_tokens(tokens);
 
     /* print enter at file tail */
-    printf("\n");
+    fprintf(output, "%d \n", null_token);
     g_array_free(current_ucs4, TRUE);
     free(linebuf);
+    fclose(input);
+    fclose(output);
     return 0;
 }

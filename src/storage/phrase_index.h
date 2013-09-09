@@ -42,7 +42,7 @@
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  * + Phrase Length + number of  Pronunciations  + Uni-gram Frequency+
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- * + Phrase String(UCS2) + n Pronunciations with Frequency +
+ * + Phrase String(UCS4) + n Pronunciations with Frequency +
  * +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  */
 
@@ -61,6 +61,11 @@ const size_t phrase_item_header = sizeof(guint8) + sizeof(guint8) + sizeof(guint
  */
 class PhraseItem{
     friend class SubPhraseIndex;
+    friend bool _compute_new_header(PhraseIndexLogger * logger,
+                                    phrase_token_t mask,
+                                    phrase_token_t value,
+                                    guint32 & new_total_freq);
+
 private:
     MemoryChunk m_chunk;
     bool set_n_pronunciation(guint8 n_prouns);
@@ -208,14 +213,15 @@ public:
 			       /* out */ guint32 & freq);
 
     /**
-     * PhraseItem::append_pronunciation:
+     * PhraseItem::add_pronunciation:
      * @keys: the pronunciation keys.
-     * @freq: the frequency of the pronunciation.
+     * @delta: the delta of the frequency of the pronunciation.
+     * @returns: whether the add operation is successful.
      *
-     * Append one pronunciation.
+     * Add one pronunciation.
      *
      */
-    void append_pronunciation(ChewingKey * keys, guint32 freq);
+    bool add_pronunciation(ChewingKey * keys, guint32 delta);
 
     /**
      * PhraseItem::remove_nth_pronunciation:
@@ -414,6 +420,16 @@ public:
      */
     int remove_phrase_item(phrase_token_t token, /* out */ PhraseItem * & item);
 
+    /**
+     * SubPhraseIndex::mask_out:
+     * @mask: the mask.
+     * @value: the value.
+     * @returns: whether the mask out operation is successful.
+     *
+     * Mask out the matched phrase items.
+     *
+     */
+    bool mask_out(phrase_token_t mask, phrase_token_t value);
 };
 
 /**
@@ -527,6 +543,22 @@ public:
     bool merge(guint8 phrase_index, MemoryChunk * log);
 
     /**
+     * FacadePhraseIndex::merge_with_mask:
+     * @phrase_index: the index of sub phrase index to be merged.
+     * @log: the logger of difference in user home directory.
+     * @mask: the mask.
+     * @value: the value.
+     * @returns: whether the merge operation is successful.
+     *
+     * Merge the user logger of difference with mask operation.
+     *
+     * Note: the ownership of log is transfered here.
+     *
+     */
+    bool merge_with_mask(guint8 phrase_index, MemoryChunk * log,
+                         phrase_token_t mask, phrase_token_t value);
+
+    /**
      * FacadePhraseIndex::compact:
      * @returns: whether the compact operation is successful.
      *
@@ -534,6 +566,21 @@ public:
      *
      */
     bool compact();
+
+    /**
+     * FacadePhraseIndex::mask_out:
+     * @phrase_index: the index of sub phrase index.
+     * @mask: the mask.
+     * @value: the value.
+     * @returns: whether the mask out operation is successful.
+     *
+     * Mask out the matched phrase items.
+     *
+     * Note: should call compact() after the mask out operation.
+     *
+     */
+    bool mask_out(guint8 phrase_index,
+                  phrase_token_t mask, phrase_token_t value);
 
     /**
      * FacadePhraseIndex::get_sub_phrase_range:
@@ -784,21 +831,9 @@ public:
     }
 };
 
-typedef enum {
-    NOT_USED,                /* not used. */
-    SYSTEM_FILE,             /* system phrase file. */
-    USER_FILE,               /* user only phrase file. */
-} PHRASE_FILE_TYPE;
+PhraseIndexLogger * mask_out_phrase_index_logger
+(PhraseIndexLogger * oldlogger, phrase_token_t mask, phrase_token_t value);
 
-typedef struct {
-    const char * m_table_filename;
-    const char * m_system_filename;
-    const char * m_user_filename;
-    PHRASE_FILE_TYPE m_file_type;
-} pinyin_table_info_t;
-
-extern const pinyin_table_info_t pinyin_phrase_files[PHRASE_INDEX_LIBRARY_COUNT];
- 
 };
 
 #endif

@@ -23,14 +23,15 @@
 #ifndef PINYIN_H
 #define PINYIN_H
 
-#include <stdio.h>
+
 #include "novel_types.h"
 #include "pinyin_custom2.h"
-#include "chewing_key.h"
 
-using namespace pinyin;
 
-extern "C" {
+G_BEGIN_DECLS
+
+typedef struct _ChewingKey ChewingKey;
+typedef struct _ChewingKeyRest ChewingKeyRest;
 
 typedef struct _pinyin_context_t pinyin_context_t;
 typedef struct _pinyin_instance_t pinyin_instance_t;
@@ -38,42 +39,13 @@ typedef struct _lookup_candidate_t lookup_candidate_t;
 
 typedef struct _import_iterator_t import_iterator_t;
 
-typedef GArray * CandidateVector; /* GArray of lookup_candidate_t */
-
-enum lookup_candidate_type_t{
+typedef enum _lookup_candidate_type_t{
     BEST_MATCH_CANDIDATE = 1,
     NORMAL_CANDIDATE,
     DIVIDED_CANDIDATE,
     RESPLIT_CANDIDATE,
     ZOMBIE_CANDIDATE
-};
-
-struct _lookup_candidate_t{
-    enum lookup_candidate_type_t m_candidate_type;
-    gchar * m_phrase_string;
-    phrase_token_t m_token;
-    ChewingKeyRest m_orig_rest;
-    gchar * m_new_pinyins;
-    guint32 m_freq; /* the amplifed gfloat numerical value. */
-public:
-    _lookup_candidate_t() {
-        m_candidate_type = NORMAL_CANDIDATE;
-        m_phrase_string = NULL;
-        m_token = null_token;
-        m_new_pinyins = NULL;
-        m_freq = 0;
-    }
-};
-
-struct _pinyin_instance_t{
-    pinyin_context_t * m_context;
-    gchar * m_raw_full_pinyin;
-    TokenVector m_prefixes;
-    ChewingKeyVector m_pinyin_keys;
-    ChewingKeyRestVector m_pinyin_key_rests;
-    CandidateConstraints m_constraints;
-    MatchResults m_match_results;
-};
+} lookup_candidate_type_t;
 
 /**
  * pinyin_init:
@@ -189,6 +161,21 @@ bool pinyin_set_chewing_scheme(pinyin_context_t * context,
  *
  */
 void pinyin_fini(pinyin_context_t * context);
+
+
+/**
+ * pinyin_mask_out:
+ * @context: the pinyin context.
+ * @mask: the mask.
+ * @value: the value.
+ * @returns: whether the mask out operation is successful.
+ *
+ * Mask out the matched phrase tokens.
+ *
+ */
+bool pinyin_mask_out(pinyin_context_t * context,
+                     phrase_token_t mask,
+                     phrase_token_t value);
 
 
 /**
@@ -362,32 +349,28 @@ size_t pinyin_parse_more_chewings(pinyin_instance_t * instance,
 bool pinyin_in_chewing_keyboard(pinyin_instance_t * instance,
                                 const char key, const char ** symbol);
 /**
- * pinyin_get_candidates:
+ * pinyin_guess_candidates:
  * @instance: the pinyin instance.
  * @offset: the offset in the pinyin keys.
- * @candidates: The GArray of lookup_candidate_t candidates.
  * @returns: whether a list of tokens are gotten.
  *
- * Get the candidates at the offset.
+ * Guess the candidates at the offset.
  *
  */
-bool pinyin_get_candidates(pinyin_instance_t * instance,
-                           size_t offset,
-                           CandidateVector candidates);
+bool pinyin_guess_candidates(pinyin_instance_t * instance,
+                             size_t offset);
 
 /**
- * pinyin_get_full_pinyin_candidates:
+ * pinyin_guess_full_pinyin_candidates:
  * @instance: the pinyin instance.
  * @offset: the offset in the pinyin keys.
- * @candidates: the GArray of lookup_candidate_t candidates.
  * @returns: whether a list of lookup_candidate_t candidates are gotten.
  *
- * Get the full pinyin candidates at the offset.
+ * Guess the full pinyin candidates at the offset.
  *
  */
-bool pinyin_get_full_pinyin_candidates(pinyin_instance_t * instance,
-                                       size_t offset,
-                                       CandidateVector candidates);
+bool pinyin_guess_full_pinyin_candidates(pinyin_instance_t * instance,
+                                       size_t offset);
 
 /**
  * pinyin_choose_candidate:
@@ -404,79 +387,29 @@ int pinyin_choose_candidate(pinyin_instance_t * instance,
                             lookup_candidate_t * candidate);
 
 /**
- * pinyin_free_candidates:
- * @instance: the pinyin instance.
- * @candidates: the GArray of lookup_candidate_t candidates.
- * @returns: whether the free operation succeeded.
- *
- * Free the candidates.
- *
- */
-bool pinyin_free_candidates(pinyin_instance_t * instance,
-                            CandidateVector candidates);
-
-/**
- * pinyin_clear_constraint:
- * @instance: the pinyin instance.
- * @offset: the offset in the pinyin keys.
- * @returns: whether the constraint is cleared.
- *
- * Clear the previous chosen candidate.
- *
- */
+* pinyin_clear_constraint:
+* @instance: the pinyin instance.
+* @offset: the offset in the pinyin keys.
+* @returns: whether the constraint is cleared.
+*
+* Clear the previous chosen candidate.
+*
+*/
 bool pinyin_clear_constraint(pinyin_instance_t * instance,
                              size_t offset);
 
 /**
- * pinyin_clear_constraints:
- * @instance: the pinyin instance.
- * @returns: whether the constraints are cleared.
- *
- * Clear all constraints.
- *
- */
-bool pinyin_clear_constraints(pinyin_instance_t * instance);
-
-/**
- * pinyin_lookup_token:
+ * pinyin_lookup_tokens:
  * @instance: the pinyin instance.
  * @phrase: the phrase to be looked up.
- * @token: the returned phrase token.
+ * @tokenarray: the returned GArray of tokens.
  * @returns: whether the lookup operation is successful.
  *
- * Lookup the token for the phrase utf8 string.
+ * Lookup the tokens for the phrase utf8 string.
  *
  */
-bool pinyin_lookup_token(pinyin_instance_t * instance,
-                         const char * phrase, phrase_token_t * token);
-
-/**
- * pinyin_translate_token:
- * @instance: the pinyin instance.
- * @token: the phrase token.
- * @word: the phrase in utf-8.
- * @returns: whether the token is valid.
- *
- * Translate the token to utf-8 phrase.
- *
- * Note: the returned word should be freed by g_free().
- *
- */
-bool pinyin_translate_token(pinyin_instance_t * instance,
-                            phrase_token_t token, char ** word);
-
-/**
- * pinyin_get_pinyins_from_token:
- * @instance: the pinyin instance.
- * @token: the character token.
- * @pinyinkeys: the pinyin keys from the character token.
- * @returns: whether the pinyin keys is retrieved.
- *
- * Get the pinyin keys for the character token.
- *
- */
-bool pinyin_get_pinyins_from_token(pinyin_instance_t * instance,
-                                   phrase_token_t token, GArray * pinyinkeys);
+bool pinyin_lookup_tokens(pinyin_instance_t * instance,
+                          const char * phrase, GArray * tokenarray);
 
 /**
  * pinyin_train:
@@ -498,16 +431,289 @@ bool pinyin_train(pinyin_instance_t * instance);
  */
 bool pinyin_reset(pinyin_instance_t * instance);
 
+/**
+ * pinyin_get_chewing_string:
+ * @instance: the pinyin instance.
+ * @key: the chewing key.
+ * @utf8_str: the chewing string.
+ * @returns: whether the get operation is successful.
+ *
+ * Get the chewing string of the key.
+ *
+ */
+bool pinyin_get_chewing_string(pinyin_instance_t * instance,
+                               ChewingKey * key,
+                               gchar ** utf8_str);
+
+/**
+ * pinyin_get_pinyin_string:
+ * @instance: the pinyin instance.
+ * @key: the pinyin key.
+ * @utf8_str: the pinyin string.
+ * @returns: whether the get operation is successful.
+ *
+ * Get the pinyin string of the key.
+ *
+ */
+bool pinyin_get_pinyin_string(pinyin_instance_t * instance,
+                              ChewingKey * key,
+                              gchar ** utf8_str);
+
+/**
+ * pinyin_get_pinyin_strings:
+ * @instance: the pinyin instance.
+ * @key: the pinyin key.
+ * @shengmu: the shengmu string.
+ * @yunmu: the yunmu string.
+ * @returns: whether the get operation is successful.
+ *
+ * Get the shengmu and yunmu strings of the key.
+ *
+ */
+bool pinyin_get_pinyin_strings(pinyin_instance_t * instance,
+                               ChewingKey * key,
+                               gchar ** shengmu,
+                               gchar ** yunmu);
+
+/**
+ * pinyin_token_get_phrase:
+ * @instance: the pinyin instance.
+ * @token: the phrase token.
+ * @len: the phrase length.
+ * @utf8_str: the phrase string.
+ * @returns: whether the get operation is successful.
+ *
+ * Get the phrase length and utf8 string.
+ *
+ */
+bool pinyin_token_get_phrase(pinyin_instance_t * instance,
+                             phrase_token_t token,
+                             guint * len,
+                             gchar ** utf8_str);
+
+/**
+ * pinyin_token_get_n_pronunciation:
+ * @instance: the pinyin instance.
+ * @token: the phrase token.
+ * @num: the number of pinyins.
+ * @returns: whether the get operation is successful.
+ *
+ * Get the number of the pinyins.
+ *
+ */
+bool pinyin_token_get_n_pronunciation(pinyin_instance_t * instance,
+                                      phrase_token_t token,
+                                      guint * num);
+
+/**
+ * pinyin_token_get_nth_pronunciation:
+ * @instance: the pinyin instance.
+ * @token: the phrase token.
+ * @nth: the index of the pinyin.
+ * @keys: the GArray of chewing key.
+ * @returns: whether the get operation is successful.
+ *
+ * Get the nth pinyin from the phrase.
+ *
+ */
+bool pinyin_token_get_nth_pronunciation(pinyin_instance_t * instance,
+                                        phrase_token_t token,
+                                        guint nth,
+                                        ChewingKeyVector keys);
+
+/**
+ * pinyin_token_get_unigram_frequency:
+ * @instance: the pinyin instance.
+ * @token: the phrase token.
+ * @freq: the unigram frequency of the phrase.
+ * @returns: whether the get operation is successful.
+ *
+ * Get the unigram frequency of the phrase.
+ *
+ */
+bool pinyin_token_get_unigram_frequency(pinyin_instance_t * instance,
+                                        phrase_token_t token,
+                                        guint * freq);
+
+/**
+ * pinyin_token_add_unigram_frequency:
+ * @instance: the pinyin instance.
+ * @token: the phrase token.
+ * @delta: the delta of the unigram frequency.
+ * @returns: whether the add operation is successful.
+ *
+ * Add delta to the unigram frequency of the phrase token.
+ *
+ */
+bool pinyin_token_add_unigram_frequency(pinyin_instance_t * instance,
+                                        phrase_token_t token,
+                                        guint delta);
+
+/**
+ * pinyin_get_n_candidate:
+ * @instance: the pinyin instance.
+ * @num: the number of the candidates.
+ * @returns: whether the get operation is successful.
+ *
+ * Get the number of the candidates.
+ *
+ */
+bool pinyin_get_n_candidate(pinyin_instance_t * instance,
+                            guint * num);
+
+/**
+ * pinyin_get_candidate:
+ * @instance: the pinyin instance.
+ * @index: the index of the candidate.
+ * @candidate: the retrieved candidate.
+ *
+ * Get the candidate of the index from the candidates.
+ *
+ */
+bool pinyin_get_candidate(pinyin_instance_t * instance,
+                          guint index,
+                          lookup_candidate_t ** candidate);
+
+/**
+ * pinyin_get_candidate_type:
+ * @instance: the pinyin instance.
+ * @candidate: the lookup candidate.
+ * @type: the type of the candidate.
+ * @returns: whether the get operation is successful.
+ *
+ * Get the type of the lookup candidate.
+ *
+ */
+bool pinyin_get_candidate_type(pinyin_instance_t * instance,
+                               lookup_candidate_t * candidate,
+                               lookup_candidate_type_t * type);
+
+/**
+ * pinyin_get_candidate_string:
+ * @instance: the pinyin instance.
+ * @candidate: the lookup candidate.
+ * @utf8_str: the string of the candidate.
+ * @returns: whether the get operation is successful.
+ *
+ * Get the string of the candidate.
+ *
+ */
+bool pinyin_get_candidate_string(pinyin_instance_t * instance,
+                                 lookup_candidate_t * candidate,
+                                 const gchar ** utf8_str);
+
+/**
+ * pinyin_get_n_pinyin:
+ * @instance: the pinyin instance.
+ * @num: the number of the pinyins.
+ * @returns: whether the get operation is successful.
+ *
+ * Get the number of the pinyins.
+ *
+ */
+bool pinyin_get_n_pinyin(pinyin_instance_t * instance,
+                         guint * num);
+
+/**
+ * pinyin_get_pinyin_key:
+ * @instance: the pinyin instance.
+ * @index: the index of the pinyin key.
+ * @key: the retrieved pinyin key.
+ * @returns: whether the get operation is successful.
+ *
+ * Get the pinyin key of the index from the pinyin keys.
+ *
+ */
+bool pinyin_get_pinyin_key(pinyin_instance_t * instance,
+                           guint index,
+                           ChewingKey ** key);
+
+/**
+ * pinyin_get_pinyin_key_rest:
+ * @instance: the pinyin index.
+ * @index: the index of the pinyin key rest.
+ * @key_rest: the retrieved pinyin key rest.
+ * @returns: whether the get operation is successful.
+ *
+ * Get the pinyin key rest of the index from the pinyin key rests.
+ *
+ */
+bool pinyin_get_pinyin_key_rest(pinyin_instance_t * instance,
+                                guint index,
+                                ChewingKeyRest ** key_rest);
+
+/**
+ * pinyin_get_pinyin_key_rest_positions:
+ * @instance: the pinyin instance.
+ * @key_rest: the pinyin key rest.
+ * @begin: the begin position of the corresponding pinyin key.
+ * @end: the end position of the corresponding pinyin key.
+ * @returns: whether the get operation is successful.
+ *
+ * Get the positions of the pinyin key rest.
+ *
+ */
+bool pinyin_get_pinyin_key_rest_positions(pinyin_instance_t * instance,
+                                          ChewingKeyRest * key_rest,
+                                          guint16 * begin, guint16 * end);
+
+/**
+ * pinyin_get_pinyin_key_rest_length:
+ * @instance: the pinyin instance.
+ * @key_rest: the pinyin key rest.
+ * @length: the length of the corresponding pinyin key.
+ * @returns: whether the get operation is successful.
+ *
+ * Get the length of the corresponding pinyin key.
+ *
+ */
+bool pinyin_get_pinyin_key_rest_length(pinyin_instance_t * instance,
+                                       ChewingKeyRest * key_rest,
+                                       guint16 * length);
+
+/**
+ * pinyin_get_raw_full_pinyin:
+ * @instance: the pinyin instance.
+ * @utf8_str: the modified raw full pinyin after choose candidate.
+ * @returns: whether the get operation is successful.
+ *
+ * Get the modified raw full pinyin after choose candidate.
+ *
+ */
+bool pinyin_get_raw_full_pinyin(pinyin_instance_t * instance,
+                                const gchar ** utf8_str);
+
+/**
+ * pinyin_get_n_phrase:
+ * @instance: the pinyin instance.
+ * @num: the number of the phrase tokens.
+ * @returns: whether the get operation is successful.
+ *
+ * Get the number of the phrase tokens.
+ *
+ */
+bool pinyin_get_n_phrase(pinyin_instance_t * instance,
+                         guint * num);
+
+/**
+ * pinyin_get_phrase_token:
+ * @instance: the pinyin instance.
+ * @index: the index of the phrase token.
+ * @token: the retrieved phrase token.
+ * @returns: whether the get operation is successful.
+ *
+ * Get the phrase token of the index from the phrase tokens.
+ *
+ */
+bool pinyin_get_phrase_token(pinyin_instance_t * instance,
+                             guint index,
+                             phrase_token_t * token);
 
 /* hack here. */
 typedef ChewingKey PinyinKey;
 typedef ChewingKeyRest PinyinKeyPos;
-typedef ChewingKeyVector PinyinKeyVector;
-typedef ChewingKeyRestVector PinyinKeyPosVector;
 
 
-#define LIBPINYIN_FORMAT_VERSION  "0.8.0"
-
-};
+G_END_DECLS
 
 #endif

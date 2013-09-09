@@ -20,9 +20,20 @@
  */
 
 #include <stdio.h>
+#include <locale.h>
 #include <glib.h>
 #include "pinyin_internal.h"
 #include "utils_helper.h"
+
+
+static const gchar * table_dir = ".";
+
+static GOptionEntry entries[] =
+{
+    {"table-dir", 0, 0, G_OPTION_ARG_FILENAME, &table_dir, "table directory", NULL},
+    {NULL}
+};
+
 
 enum LINE_TYPE{
     BEGIN_LINE = 1,
@@ -117,14 +128,17 @@ bool parse_unigram(FILE * input, PhraseLargeTable2 * phrase_table,
                    FacadePhraseIndex * phrase_index){
     taglib_push_state();
 
-    assert(taglib_add_tag(GRAM_1_ITEM_LINE, "\\item", 1, "count", ""));
+    assert(taglib_add_tag(GRAM_1_ITEM_LINE, "\\item", 2, "count", ""));
 
     do {
         assert(taglib_read(linebuf, line_type, values, required));
         switch (line_type) {
         case GRAM_1_ITEM_LINE:{
             /* handle \item in \1-gram */
-            TAGLIB_GET_VALUE(token, 0);
+            TAGLIB_GET_TOKEN(token, 0);
+            TAGLIB_GET_PHRASE_STRING(word, 1);
+            assert(taglib_validate_token_with_string
+                   (phrase_index, token, word));
 
             TAGLIB_GET_TAGVALUE(glong, count, atol);
             phrase_index->add_unigram_frequency(token, count);
@@ -149,7 +163,7 @@ bool parse_bigram(FILE * input, PhraseLargeTable2 * phrase_table,
                   Bigram * bigram){
     taglib_push_state();
 
-    assert(taglib_add_tag(GRAM_2_ITEM_LINE, "\\item", 2, "count", ""));
+    assert(taglib_add_tag(GRAM_2_ITEM_LINE, "\\item", 4, "count", ""));
 
     phrase_token_t last_token = 0; SingleGram * last_single_gram = NULL;
     do {
@@ -158,8 +172,15 @@ bool parse_bigram(FILE * input, PhraseLargeTable2 * phrase_table,
         case GRAM_2_ITEM_LINE:{
             /* handle \item in \2-gram */
             /* two tokens */
-            TAGLIB_GET_VALUE(token1, 0);
-            TAGLIB_GET_VALUE(token2, 1);
+            TAGLIB_GET_TOKEN(token1, 0);
+            TAGLIB_GET_PHRASE_STRING(word1, 1);
+            assert(taglib_validate_token_with_string
+                   (phrase_index, token1, word1));
+
+            TAGLIB_GET_TOKEN(token2, 2);
+            TAGLIB_GET_PHRASE_STRING(word2, 3);
+            assert(taglib_validate_token_with_string
+                   (phrase_index, token2, word2));
 
             TAGLIB_GET_TAGVALUE(glong, count, atol);
 
@@ -167,20 +188,23 @@ bool parse_bigram(FILE * input, PhraseLargeTable2 * phrase_table,
                 if ( last_token && last_single_gram ) {
                     bigram->store(last_token, last_single_gram);
                     delete last_single_gram;
-                    //safe guard
-                    last_token = 0;
+
+                    /* safe guard */
+                    last_token = null_token;
                     last_single_gram = NULL;
                 }
                 SingleGram * single_gram = NULL;
                 bigram->load(token1, single_gram);
 
-                //create the new single gram
+                /* create the new single gram */
                 if ( single_gram == NULL )
                     single_gram = new SingleGram;
                 last_token = token1;
                 last_single_gram = single_gram;
             }
-            //save the freq
+
+            /* save the freq */
+            assert(NULL != last_single_gram);
             guint32 total_freq = 0;
             assert(last_single_gram->get_total_freq(total_freq));
             assert(last_single_gram->insert_freq(token2, count));
@@ -212,12 +236,34 @@ bool parse_bigram(FILE * input, PhraseLargeTable2 * phrase_table,
 
 int main(int argc, char * argv[]){
     FILE * input = stdin;
-    const char * bigram_filename = "bigram.db";
+    const char * bigram_filename = SYSTEM_BIGRAM;
+
+    setlocale(LC_ALL, "");
+
+    GError * error = NULL;
+    GOptionContext * context;
+
+    context = g_option_context_new("- import interpolation model");
+    g_option_context_add_main_entries(context, entries, NULL);
+    if (!g_option_context_parse(context, &argc, &argv, &error)) {
+        g_print("option parsing failed:%s\n", error->message);
+        exit(EINVAL);
+    }
+
+    SystemTableInfo system_table_info;
+
+    gchar * filename = g_build_filename(table_dir, SYSTEM_TABLE_INFO, NULL);
+    bool retval = system_table_info.load(filename);
+    if (!retval) {
+        fprintf(stderr, "load table.conf failed.\n");
+        exit(ENOENT);
+    }
+    g_free(filename);
 
     PhraseLargeTable2 phrase_table;
 
     MemoryChunk * chunk = new MemoryChunk;
-    bool retval = chunk->load("phrase_index.bin");
+    retval = chunk->load(SYSTEM_PHRASE_INDEX);
     if (!retval) {
         fprintf(stderr, "open phrase_index.bin failed!\n");
         exit(ENOENT);
@@ -225,7 +271,11 @@ int main(int argc, char * argv[]){
     phrase_table.load(chunk);
 
     FacadePhraseIndex phrase_index;
-    if (!load_phrase_index(&phrase_index))
+
+    const pinyin_table_info_t * phrase_files =
+        system_table_info.get_table_info();
+
+    if (!load_phrase_index(phrase_files, &phrase_index))
         exit(ENOENT);
 
     Bigram bigram;
@@ -256,7 +306,7 @@ int main(int argc, char * argv[]){
 
     taglib_fini();
 
-    if (!save_phrase_index(&phrase_index))
+    if (!save_phrase_index(phrase_files, &phrase_index))
         exit(ENOENT);
 
     return 0;

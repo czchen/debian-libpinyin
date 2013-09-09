@@ -89,15 +89,27 @@ parameter_t compute_interpolation(SingleGram * deleted_bigram,
 }
     
 int main(int argc, char * argv[]){
+    SystemTableInfo system_table_info;
+
+    bool retval = system_table_info.load(SYSTEM_TABLE_INFO);
+    if (!retval) {
+        fprintf(stderr, "load table.conf failed.\n");
+        exit(ENOENT);
+    }
+
     FacadePhraseIndex phrase_index;
-    if (!load_phrase_index(&phrase_index))
+
+    const pinyin_table_info_t * phrase_files =
+        system_table_info.get_table_info();
+
+    if (!load_phrase_index(phrase_files, &phrase_index))
         exit(ENOENT);
 
     Bigram bigram;
-    bigram.attach("bigram.db", ATTACH_READONLY);
+    bigram.attach(SYSTEM_BIGRAM, ATTACH_READONLY);
 
     Bigram deleted_bigram;
-    deleted_bigram.attach("deleted_bigram.db", ATTACH_READONLY);
+    deleted_bigram.attach(DELETED_BIGRAM, ATTACH_READONLY);
 
     GArray * deleted_items = g_array_new(FALSE, FALSE, sizeof(phrase_token_t));
     deleted_bigram.get_all_items(deleted_items);

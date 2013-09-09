@@ -55,6 +55,53 @@ bool SingleGram::set_total_freq(guint32 total){
     return true;
 }
 
+guint32 SingleGram::get_length(){
+    /* get the number of items. */
+    const SingleGramItem * begin = (const SingleGramItem *)
+        ((const char *)(m_chunk.begin()) + sizeof(guint32));
+    const SingleGramItem * end = (const SingleGramItem *) m_chunk.end();
+
+    const guint32 length = end - begin;
+
+    if (0 == length) {
+        /* no items here, total freq should be zero. */
+        guint32 total_freq = 0;
+        assert(get_total_freq(total_freq));
+        assert(0 == total_freq);
+    }
+
+    return length;
+}
+
+guint32 SingleGram::mask_out(phrase_token_t mask, phrase_token_t value){
+    guint32 removed_items = 0;
+
+    guint32 total_freq = 0;
+    assert(get_total_freq(total_freq));
+
+    const SingleGramItem * begin = (const SingleGramItem *)
+        ((const char *)(m_chunk.begin()) + sizeof(guint32));
+    const SingleGramItem * end = (const SingleGramItem *) m_chunk.end();
+
+    for (const SingleGramItem * cur = begin; cur != end; ++cur) {
+        if ((cur->m_token & mask) != value)
+            continue;
+
+        total_freq -= cur->m_freq;
+        size_t offset = sizeof(guint32) +
+            sizeof(SingleGramItem) * (cur - begin);
+        m_chunk.remove_content(offset, sizeof(SingleGramItem));
+
+        /* update chunk end. */
+        end = (const SingleGramItem *) m_chunk.end();
+        ++removed_items;
+        --cur;
+    }
+
+    assert(set_total_freq(total_freq));
+    return removed_items;
+}
+
 bool SingleGram::prune(){
     assert(false);
 #if 0
@@ -240,6 +287,9 @@ bool Bigram::load_db(const char * dbfile){
     ret = db_create(&tmp_db, NULL, 0);
     assert(ret == 0);
 
+    if (NULL == tmp_db)
+        return false;
+
     ret = tmp_db->open(tmp_db, NULL, dbfile, NULL,
                        DB_HASH, DB_RDONLY, 0600);
     if ( ret != 0 )
@@ -247,8 +297,12 @@ bool Bigram::load_db(const char * dbfile){
 
     DBC * cursorp = NULL;
     DBT key, data;
+
     /* Get a cursor */
     tmp_db->cursor(tmp_db, NULL, &cursorp, 0);
+
+    if (NULL == cursorp)
+        return false;
 
     /* Initialize our DBTs. */
     memset(&key, 0, sizeof(DBT));
@@ -281,6 +335,9 @@ bool Bigram::save_db(const char * dbfile){
     ret = db_create(&tmp_db, NULL, 0);
     assert(ret == 0);
 
+    if (NULL == tmp_db)
+        return false;
+
     ret = tmp_db->open(tmp_db, NULL, dbfile, NULL,
                        DB_HASH, DB_CREATE, 0600);
     if ( ret != 0 )
@@ -290,6 +347,9 @@ bool Bigram::save_db(const char * dbfile){
     DBT key, data;
     /* Get a cursor */
     m_db->cursor(m_db, NULL, &cursorp, 0);
+
+    if (NULL == cursorp)
+        return false;
 
     /* Initialize our DBTs. */
     memset(&key, 0, sizeof(DBT));
@@ -374,6 +434,19 @@ bool Bigram::store(phrase_token_t index, SingleGram * single_gram){
     return ret == 0;
 }
 
+bool Bigram::remove(/* in */ phrase_token_t index){
+    if ( !m_db )
+        return false;
+
+    DBT db_key;
+    memset(&db_key, 0, sizeof(DBT));
+    db_key.data = &index;
+    db_key.size = sizeof(phrase_token_t);
+
+    int ret = m_db->del(m_db, NULL, &db_key, 0);
+    return 0 == ret;
+}
+
 bool Bigram::get_all_items(GArray * items){
     g_array_set_size(items, 0);
 
@@ -384,7 +457,10 @@ bool Bigram::get_all_items(GArray * items){
     DBT key, data;
     int ret;
     /* Get a cursor */
-    m_db->cursor(m_db, NULL, &cursorp, 0); 
+    m_db->cursor(m_db, NULL, &cursorp, 0);
+
+    if (NULL == cursorp)
+        return false;
 
     /* Initialize our DBTs. */
     memset(&key, 0, sizeof(DBT));
@@ -403,6 +479,44 @@ bool Bigram::get_all_items(GArray * items){
     if (cursorp != NULL) 
         cursorp->c_close(cursorp); 
 
+    return true;
+}
+
+bool Bigram::mask_out(phrase_token_t mask, phrase_token_t value){
+    GArray * items = g_array_new(FALSE, FALSE, sizeof(phrase_token_t));
+
+    if (!get_all_items(items)) {
+        g_array_free(items, TRUE);
+        return false;
+    }
+
+    for (size_t i = 0; i < items->len; ++i) {
+        phrase_token_t index = g_array_index(items, phrase_token_t, i);
+
+        if ((index & mask) == value) {
+            assert(remove(index));
+            continue;
+        }
+
+        SingleGram * gram = NULL;
+        assert(load(index, gram));
+
+        int num = gram->mask_out(mask, value);
+        if (0 == num) {
+            delete gram;
+            continue;
+        }
+
+        if (0 == gram->get_length()) {
+            assert(remove(index));
+        } else {
+            assert(store(index, gram));
+        }
+
+        delete gram;
+    }
+
+    g_array_free(items, TRUE);
     return true;
 }
 

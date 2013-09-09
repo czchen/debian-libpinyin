@@ -22,16 +22,23 @@
 #ifndef MEMORY_CHUNK_H
 #define MEMORY_CHUNK_H
 
+#include <config.h>
 #include <assert.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <unistd.h>
-#include <stdio.h>
+#include <fcntl.h>
 #include <stdlib.h>
+#ifdef HAVE_MMAP
+#include <sys/mman.h>
+#endif
 #include "stl_lite.h"
 
 namespace pinyin{
 
 /*  for unmanaged mode
- *  m_free_func == free , when memory is allocated by malloc
+ *  m_free_func == free, when memory is allocated by malloc
+ *  m_free_func == munmap, when memory is allocated by mmap
  *  m_free_func == NULL,
  *  when memory is in small protion of allocated area
  *  m_free_func == other,
@@ -46,7 +53,7 @@ namespace pinyin{
  */
 
 class MemoryChunk{
-    typedef   void (* free_func_t)(void *);
+    typedef void (* free_func_t)(...);
 private:
     char * m_data_begin;
     char * m_data_end; //one data pass the end.
@@ -54,9 +61,22 @@ private:
     free_func_t m_free_func;
     
 private:
+    void freemem(){
+        if ((free_func_t)free == m_free_func)
+            free(m_data_begin);
+#ifdef HAVE_MMAP
+        else if ((free_func_t)munmap == m_free_func)
+            munmap(m_data_begin, capacity());
+#endif
+        else
+            assert(FALSE);
+    }
+
+
     void reset(){
-	if ( m_free_func )
-	    (*m_free_func)(m_data_begin);
+        if (m_free_func)
+            freemem();
+
 	m_data_begin = NULL;
 	m_data_end = NULL;
 	m_allocated = NULL;
@@ -74,7 +94,7 @@ private:
 	if ( 0 == extra_size ) return;
 	size_t newsize;
 	size_t cursize = size();
-	if ( m_free_func != free ) {
+	if ( m_free_func != (free_func_t)free ) {
 	    /* copy on resize */
 	    newsize = cursize + extra_size;
 	    /* do the copy */
@@ -83,15 +103,13 @@ private:
 	    memset(tmp, 0, newsize);
 	    memmove(tmp, m_data_begin, cursize);
 	    /* free the origin memory */
-	    if ( m_free_func){
-		(*m_free_func)(m_data_begin);
-	    }
-	    
+            if (m_free_func)
+                freemem();
 	    /* change varibles */
 	    m_data_begin = tmp;
 	    m_data_end = m_data_begin + cursize;
 	    m_allocated = m_data_begin + newsize;
-	    m_free_func = free;
+	    m_free_func = (free_func_t)free;
 	    return;
 	}
 	/* the memory area is managed by this memory chunk */
@@ -192,8 +210,8 @@ public:
      *
      */
     void set_chunk(void* begin, size_t length, free_func_t free_func){
-	if ( m_free_func )
-	    m_free_func( m_data_begin );
+	if (m_free_func)
+            freemem();
 	
 	m_data_begin = (char *) begin;
 	m_data_end = (char *) m_data_begin + length;
@@ -312,7 +330,7 @@ public:
      *
      */
     void compact_memory(){
-	if ( m_free_func != free )
+	if ( m_free_func != (free_func_t)free )
 	    return;
 	size_t newsize = size();
 	m_data_begin = (char *) realloc(m_data_begin, newsize);
@@ -331,27 +349,37 @@ public:
 	/* free old data */
 	reset();
 
-        size_t file_size;
-	
-	FILE* file = fopen(filename, "r");
-	if ( !file )
+	int fd = open(filename, O_RDONLY);
+	if (-1 == fd)
 	    return false;
 
-        fseek(file, 0, SEEK_END);
-        file_size = ftell(file);
-        fseek(file, 0, SEEK_SET);
+        off_t file_size = lseek(fd, 0, SEEK_END);
+        lseek(fd, 0, SEEK_SET);
 
 	int data_len = file_size;
+
+#ifdef HAVE_MMAP
+        void* data = mmap(NULL, data_len, PROT_READ|PROT_WRITE, MAP_PRIVATE,
+                          fd, 0);
+
+        if (MAP_FAILED == data) {
+            close(fd);
+            return false;
+        }
+
+        set_chunk(data, data_len, (free_func_t)munmap);
+#else
 	void* data = malloc(data_len);
 	if ( !data ){
-	    fclose(file);
-	    return false;      
+	    close(fd);
+	    return false;
 	}
-	
-	data_len = fread(data, 1, data_len, file);
-	set_chunk(data, data_len, free);
 
-	fclose(file);
+	data_len = read(fd, data, data_len);
+	set_chunk(data, data_len, (free_func_t)free);
+#endif
+
+	close(fd);
 	return true;
     }
 
@@ -364,18 +392,18 @@ public:
      *
      */
     bool save(const char * filename){
-	FILE* file = fopen(filename, "w");
-	if ( !file )
+	int fd = open(filename, O_CREAT|O_WRONLY|O_TRUNC, 0644);
+	if ( -1 == fd )
 	    return false;
 
-	size_t data_len = fwrite(begin(), 1, size(), file);
+	size_t data_len = write(fd, begin(), size());
 	if ( data_len != size()){
-	    fclose(file);
+	    close(fd);
 	    return false;
 	}
 
-	fsync(fileno(file));
-	fclose(file);
+	fsync(fd);
+	close(fd);
 	return true;
     }
 };
