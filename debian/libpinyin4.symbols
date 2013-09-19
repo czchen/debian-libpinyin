@@ -1,4 +1,4 @@
-libpinyin.so.4 libpinyin2 #MINVER#
+libpinyin.so.4 libpinyin4 #MINVER#
  LIBPINYIN@LIBPINYIN 0.9.93
  pinyin_alloc_instance@LIBPINYIN 0.9.93
  pinyin_begin_add_phrases@LIBPINYIN 0.9.93
