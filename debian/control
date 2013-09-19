@@ -7,8 +7,8 @@ Build-Depends: debhelper (>= 9), autotools-dev, libltdl-dev,
 Standards-Version: 3.9.4
 Section: libs
 Homepage: http://github.com/libpinyin
-Vcs-Git: git://git.debian.org/pkg-ime/libpinyin.git
-Vcs-Browser: http://git.debian.org/?p=pkg-ime/libpinyin.git
+Vcs-Git: git://anonscm.debian.org/pkg-ime/libpinyin.git
+Vcs-Browser: http://anonscm.debian.org/git/pkg-ime/libpinyin.git
 
 Package: libpinyin2-dev
 Section: libdevel
