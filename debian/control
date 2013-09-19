@@ -1,9 +1,15 @@
 Source: libpinyin
 Priority: optional
 Maintainer: IME Packaging Team <pkg-ime-devel@lists.alioth.debian.org>
-Uploaders: Aron Xu <aron@debian.org>, YunQiang Su <wzssyqa@gmail.com>, Asias He <asias@debian.org>
-Build-Depends: debhelper (>= 9), autotools-dev, libltdl-dev,
-    libglib2.0-dev, libdb-dev, dh-autoreconf
+Uploaders: Aron Xu <aron@debian.org>,
+           YunQiang Su <wzssyqa@gmail.com>,
+           Asias He <asias@debian.org>
+Build-Depends: autotools-dev,
+               debhelper (>= 9),
+               dh-autoreconf,
+               libdb-dev,
+               libglib2.0-dev,
+               libltdl-dev
 Standards-Version: 3.9.4
 Section: libs
 Homepage: http://github.com/libpinyin
@@ -14,7 +20,7 @@ Package: libpinyin2-dev
 Section: libdevel
 Architecture: any
 Multi-Arch: same
-Depends: ${misc:Depends}, libpinyin2 (= ${binary:Version})
+Depends: libpinyin2 (= ${binary:Version}), ${misc:Depends}
 Recommends: libpinyin-utils
 Provides: libpinyin-dev
 Conflicts: libpinyin-dev
@@ -28,7 +34,7 @@ Package: libpinyin2
 Architecture: any
 Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends}
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: ${misc:Depends}, ${shlibs:Depends}
 Breaks: fcitx-libpinyin (<< 0.2.0), libpinyin0
 Replaces: libpinyin0
 Provides: libpinyin
@@ -43,7 +49,7 @@ Package: libpinyin-utils
 Section: utils
 Architecture: any
 Multi-Arch: foreign
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: ${misc:Depends}, ${shlibs:Depends}
 Description: library to deal with PinYin - utilities
  libpinyin is a set of core algorithms designed for intelligent
  sentence-based Chinese PinYin input methods.
@@ -55,7 +61,7 @@ Section: debug
 Priority: extra
 Architecture: any
 Multi-Arch: same
-Depends: ${misc:Depends}, libpinyin2 (= ${binary:Version}) 
+Depends: libpinyin2 (= ${binary:Version}), ${misc:Depends}
 Description: library to deal with PinYin - debug symbols
  libpinyin is a set of core algorithms designed for intelligent
  sentence-based Chinese PinYin input methods.
