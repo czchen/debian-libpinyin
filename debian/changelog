@@ -1,3 +1,10 @@
+libpinyin (0.9.93+repack1-0exp2) experimental; urgency=low
+
+  * Team upload.
+  * Update Breaks/Replaces (Closes: #723958)
+
+ -- Aron Xu <happyaron.xu@gmail.com>  Mon, 23 Sep 2013 01:15:49 +0800
+
 libpinyin (0.9.93+repack1-0exp1) experimental; urgency=low
 
   * Team upload.
