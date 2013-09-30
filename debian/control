@@ -14,7 +14,7 @@ Standards-Version: 3.9.4
 Section: libs
 Homepage: http://github.com/libpinyin
 Vcs-Git: git://anonscm.debian.org/pkg-ime/libpinyin.git
-Vcs-Browser: http://anonscm.debian.org/gitweb/?p=pkg-ime/libpinyin.git
+Vcs-Browser: http://anonscm.debian.org/git/pkg-ime/libpinyin.git
 
 Package: libpinyin4-dev
 Section: libdevel
