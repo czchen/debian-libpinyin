@@ -1,3 +1,9 @@
+libpinyin (1.0.0+repack1-1) UNRELEASED; urgency=low
+
+  * New upstream release.
+
+ -- Aron Xu <aron@debian.org>  Sun, 06 Jul 2014 03:03:51 +0800
+
 libpinyin (0.9.93+repack1-1) unstable; urgency=low
 
   * Upload to unstable.
