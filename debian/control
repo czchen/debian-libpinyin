@@ -11,7 +11,7 @@ Build-Depends: autotools-dev,
                libdb-dev,
                libglib2.0-dev,
                libltdl-dev
-Standards-Version: 3.9.5
+Standards-Version: 3.9.6
 Section: libs
 Homepage: http://github.com/libpinyin
 Vcs-Git: git://anonscm.debian.org/pkg-ime/libpinyin.git
