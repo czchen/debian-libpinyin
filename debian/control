@@ -3,7 +3,8 @@ Priority: optional
 Maintainer: IME Packaging Team <pkg-ime-devel@lists.alioth.debian.org>
 Uploaders: Aron Xu <aron@debian.org>,
            YunQiang Su <wzssyqa@gmail.com>,
-           Asias He <asias@debian.org>
+           Asias He <asias@debian.org>,
+           ChangZhuo Chen (陳昌倬) <czchen@gmail.com>,
 Build-Depends: autotools-dev,
                debhelper (>= 9),
                dh-autoreconf,
