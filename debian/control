@@ -16,6 +16,7 @@ Section: libs
 Homepage: http://github.com/libpinyin
 Vcs-Git: git://anonscm.debian.org/pkg-ime/libpinyin.git
 Vcs-Browser: http://anonscm.debian.org/git/pkg-ime/libpinyin.git
+Testsuite: autopkgtest
 
 Package: libpinyin5-dev
 Section: libdevel
