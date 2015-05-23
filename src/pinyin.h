@@ -38,13 +38,15 @@ typedef struct _pinyin_instance_t pinyin_instance_t;
 typedef struct _lookup_candidate_t lookup_candidate_t;
 
 typedef struct _import_iterator_t import_iterator_t;
+typedef struct _export_iterator_t export_iterator_t;
 
 typedef enum _lookup_candidate_type_t{
     BEST_MATCH_CANDIDATE = 1,
     NORMAL_CANDIDATE,
     DIVIDED_CANDIDATE,
     RESPLIT_CANDIDATE,
-    ZOMBIE_CANDIDATE
+    ZOMBIE_CANDIDATE,
+    PREDICTED_CANDIDATE
 } lookup_candidate_type_t;
 
 /**
@@ -118,6 +120,53 @@ bool pinyin_iterator_add_phrase(import_iterator_t * iter,
  *
  */
 void pinyin_end_add_phrases(import_iterator_t * iter);
+
+/**
+ * pinyin_begin_get_phrases:
+ * @context: the pinyin context.
+ * @index: the phrase index to be exported.
+ * @returns: the export iterator.
+ *
+ * Begin to get phrases.
+ *
+ */
+export_iterator_t * pinyin_begin_get_phrases(pinyin_context_t * context,
+                                             guint index);
+
+/**
+ * pinyin_iterator_has_next_phrase:
+ * @iter: the export iterator.
+ * @returns: whether the iterator has the next phrase.
+ *
+ * Check whether the iterator has the next phrase.
+ *
+ */
+bool pinyin_iterator_has_next_phrase(export_iterator_t * iter);
+
+/**
+ * pinyin_iterator_get_next_phrase:
+ * @iter: the export iterator.
+ * @phrase: the phrase string.
+ * @pinyin: the pinyin string.
+ * @count: the count of the phrase/pinyin pair, -1 means the default value.
+ * @returns: whether the get next phrase operation succeeded.
+ *
+ * Get a pair of phrase and pinyin with count.
+ *
+ */
+bool pinyin_iterator_get_next_phrase(export_iterator_t * iter,
+                                     gchar ** phrase,
+                                     gchar ** pinyin,
+                                     gint * count);
+
+/**
+ * pinyin_end_get_phrases:
+ * @iter: the export iterator.
+ *
+ * End getting phrases.
+ *
+ */
+void pinyin_end_get_phrases(export_iterator_t * iter);
 
 /**
  * pinyin_save:
@@ -209,6 +258,15 @@ pinyin_instance_t * pinyin_alloc_instance(pinyin_context_t * context);
  */
 void pinyin_free_instance(pinyin_instance_t * instance);
 
+/**
+ * pinyin_get_context:
+ * @instance: the pinyin instance.
+ * @returns: the pinyin context.
+ *
+ * Get the pinyin context from the pinyin instance.
+ *
+ */
+pinyin_context_t * pinyin_get_context (pinyin_instance_t * instance);
 
 /**
  * pinyin_guess_sentence:
@@ -230,6 +288,18 @@ bool pinyin_guess_sentence(pinyin_instance_t * instance);
  *
  */
 bool pinyin_guess_sentence_with_prefix(pinyin_instance_t * instance,
+                                       const char * prefix);
+
+/**
+ * pinyin_guess_predicted_candidates:
+ * @instance: the pinyin instance.
+ * @prefix: the prefix before the predicted candidates.
+ * @returns: whether the predicted candidates are guessed successfully.
+ *
+ * Guess the predicted candidates after the prefix word.
+ *
+ */
+bool pinyin_guess_predicted_candidates(pinyin_instance_t * instance,
                                        const char * prefix);
 
 /**
@@ -337,6 +407,17 @@ size_t pinyin_parse_more_chewings(pinyin_instance_t * instance,
                                   const char * chewings);
 
 /**
+ * pinyin_get_parsed_input_length:
+ * @instance: the pinyin instance.
+ * @returns: the parsed_length of the input.
+ *
+ * Get the parsed length of the input.
+ *
+ */
+size_t pinyin_get_parsed_input_length(pinyin_instance_t * instance);
+
+
+/**
  * pinyin_in_chewing_keyboard:
  * @instance: the pinyin instance.
  * @key: the input key.
@@ -385,6 +466,18 @@ bool pinyin_guess_full_pinyin_candidates(pinyin_instance_t * instance,
 int pinyin_choose_candidate(pinyin_instance_t * instance,
                             size_t offset,
                             lookup_candidate_t * candidate);
+
+/**
+ * pinyin_choose_predicted_candidate:
+ * @instance: the pinyin instance.
+ * @candidate: the selected candidate.
+ * @returns: whether the self-learning is successful.
+ *
+ * Choose a predicted candidate.
+ *
+ */
+bool pinyin_choose_predicted_candidate(pinyin_instance_t * instance,
+                                       lookup_candidate_t * candidate);
 
 /**
 * pinyin_clear_constraint:
@@ -474,6 +567,18 @@ bool pinyin_get_pinyin_strings(pinyin_instance_t * instance,
                                ChewingKey * key,
                                gchar ** shengmu,
                                gchar ** yunmu);
+
+/**
+ * pinyin_get_pinyin_is_incomplete:
+ * @instance: the pinyin instance.
+ * @key: the pinyin key.
+ * @returns: whether the pinyin key is incomplete pinyin.
+ *
+ * Check whether the pinyin key is incomplete pinyin.
+ *
+ */
+bool pinyin_get_pinyin_is_incomplete(pinyin_instance_t * instance,
+                                     ChewingKey * key);
 
 /**
  * pinyin_token_get_phrase:
@@ -670,6 +775,20 @@ bool pinyin_get_pinyin_key_rest_positions(pinyin_instance_t * instance,
 bool pinyin_get_pinyin_key_rest_length(pinyin_instance_t * instance,
                                        ChewingKeyRest * key_rest,
                                        guint16 * length);
+
+/**
+ * pinyin_get_pinyin_key_rest_offset:
+ * @instance: the pinyin instance.
+ * @cursor: the cursor.
+ * @offset: the offset in the pinyin array.
+ * @returns: whether the get operation is successful.
+ *
+ * Get the offset in the pinyin key array.
+ *
+ */
+bool pinyin_get_pinyin_key_rest_offset(pinyin_instance_t * instance,
+                                       guint16 cursor,
+                                       guint16 * offset);
 
 /**
  * pinyin_get_raw_full_pinyin:
