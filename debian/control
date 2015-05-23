@@ -17,11 +17,11 @@ Homepage: http://github.com/libpinyin
 Vcs-Git: git://anonscm.debian.org/pkg-ime/libpinyin.git
 Vcs-Browser: http://anonscm.debian.org/git/pkg-ime/libpinyin.git
 
-Package: libpinyin4-dev
+Package: libpinyin5-dev
 Section: libdevel
 Architecture: any
 Multi-Arch: same
-Depends: libpinyin4 (= ${binary:Version}), ${misc:Depends}
+Depends: libpinyin5 (= ${binary:Version}), ${misc:Depends}
 Recommends: libpinyin-utils
 Provides: libpinyin-dev
 Conflicts: libpinyin-dev
@@ -31,7 +31,7 @@ Description: library to deal with PinYin - development files
  .
  This package provides the library development files.
 
-Package: libpinyin4
+Package: libpinyin5
 Architecture: any
 Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends}
@@ -62,7 +62,7 @@ Section: debug
 Priority: extra
 Architecture: any
 Multi-Arch: same
-Depends: libpinyin4 (= ${binary:Version}), ${misc:Depends}
+Depends: libpinyin5 (= ${binary:Version}), ${misc:Depends}
 Description: library to deal with PinYin - debug symbols
  libpinyin is a set of core algorithms designed for intelligent
  sentence-based Chinese PinYin input methods.
