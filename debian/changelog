@@ -1,3 +1,13 @@
+libpinyin (1.1.0-1) experimental; urgency=medium
+
+  * New upstream release.
+  * Bump Standards-Version to 3.9.6
+  * Change so version to 5
+  * Update watch to SourceForge
+  * Add autopkgtest
+
+ -- ChangZhuo Chen (陳昌倬) <czchen@gmail.com>  Sat, 23 May 2015 13:25:00 +0800
+
 libpinyin (1.0.0+repack2-1) unstable; urgency=low
 
   * New upstream release.
